@@ -8,9 +8,6 @@ let pageContent = '';
 
 const summaryElement = document.querySelector('#summary');
 const warningElement = document.querySelector('#warning');
-const summaryTypeSelect = document.querySelector('#type');
-const summaryFormatSelect = document.querySelector('#format');
-const summaryLengthSelect = document.querySelector('#length');
 const summarizeButton = document.querySelector('#summarizeButton');
 
 // Show warning
@@ -151,7 +148,63 @@ async function analyzeMusicGenre(summaryText) {
 
       const reply = await summarizer.summarize(prompt);
 
+      console.log('Music analysis reply: \n', reply);
+
       summarizer.destroy();
+
+      // Extract genres and bpm from the reply
+      // Sample reply format:
+
+        // * genres: ["Ambient", "Electronic", "Classical"]
+        // * bpm: 70
+
+        // OR
+
+        // genres: ["Classical", "Ambient", "Minimalist"]
+        // bpm: 60
+
+      // Cleaning up the reply to extract JSON
+      // Extract genres and bpm from the reply
+      let genres = [];
+      let bpm = null;
+
+      try {
+        const clean = reply
+          .replace(/\*/g, '') // remove asterisks
+          .trim();
+
+        // Match the genres array
+        const genresMatch = clean.match(/genres:\s*(\[[^\]]+\])/i);
+        if (genresMatch) {
+          try {
+            genres = JSON.parse(genresMatch[1]);
+          } catch (e) {
+            console.warn('Could not parse genres JSON:', e);
+            genres = [];
+          }
+        }
+
+        // Match the bpm value
+        const bpmMatch = clean.match(/bpm:\s*(\d+)/i);
+        bpm = bpmMatch ? parseInt(bpmMatch[1], 10) : null;
+
+      } catch (e) {
+        console.error('Error parsing music analysis reply:', e);
+      }
+
+      // Graceful fallback defaults
+      if (!Array.isArray(genres) || !genres.length) {
+        genres = ['Unknown'];
+      }
+      if (!Number.isFinite(bpm) || bpm <= 0) {
+        bpm = null;
+      }
+
+      console.log('Genres:', genres);
+      console.log('BPM:', bpm);
+
+      return { genres, bpm };
+
 
       // Attempt to parse JSON output
       // let result;
@@ -164,8 +217,6 @@ async function analyzeMusicGenre(summaryText) {
       //     genres: ['failed to parse summarizer json']
       //   };
       // }
-
-      return reply;
     } else {
       throw new Error('Summarizer could not be created.');
     }
@@ -198,10 +249,8 @@ summarizeButton.addEventListener('click', async () => {
 
   if (analysis.genres && analysis.bpm) {
     musicInfo = `
-      ---
-      🎵
-      **Suggested BPM:** ${analysis.bpm};
-      **Genres:** ${analysis.genres.join(', ')};
+      Suggested BPM: ${analysis.bpm};
+      Genres: ${analysis.genres.join(', ')};
       `;
   } else {
     musicInfo = analysis;
@@ -216,11 +265,6 @@ function onConfigChange() {
   pageContent = '';
   onContentChange(oldContent);
 }
-
-[summaryTypeSelect, summaryFormatSelect, summaryLengthSelect].forEach((e) =>
-  e.addEventListener('change', onConfigChange)
-);
-
 // Listen for content from session storage
 chrome.storage.session.get('pageContent', ({ pageContent: storedContent }) => {
   if (storedContent) pageContent = storedContent;
