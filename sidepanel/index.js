@@ -2,7 +2,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 
-const MAX_MODEL_CHARS = 4000;
+const MAX_MODEL_CHARS = 10000;
 
 let pageContent = '';
 
@@ -41,41 +41,46 @@ function chunkText(text, maxLength = MAX_MODEL_CHARS) {
 
 // Main summarization function
 async function generateSummary(text) {
+  let summarizer;  // Declare summarizer outside of the if block
   try {
     const options = {
-      sharedContext: 'this is a website',
-      type: summaryTypeSelect.value,
-      format: summaryFormatSelect.value,
-      length: summaryLengthSelect.value
+      sharedContext: 'This is a website.',
+      type: 'key-points',
+      format: 'plain-text',
+      length: 'short',
+      monitor(m) {
+        m.addEventListener('downloadprogress', (e) => {
+          console.log(`Downloaded ${e.loaded * 100}%`);
+        });
+      }
     };
 
     const availability = await Summarizer.availability();
-    if (availability === 'unavailable') return 'Summarizer API not available';
-
-    // Create a fresh summarizer instance for each run
-    const summarizer = await Summarizer.create(options);
-
-    // Show download message if needed
-    if (summarizer.downloadProgress) {
-      showSummary('Downloading model…');
-      await summarizer.downloadProgress;
+    if (availability === 'unavailable') {
+      // The Summarizer API isn't usable.
+      return;
     }
 
-    // Ensure the model is fully ready
-    await summarizer.ready;
-
-    showSummary('Summarizing…');
-
-    // Chunk text and summarize
-    const chunks = chunkText(text);
-    let finalSummary = '';
-    for (const chunk of chunks) {
-      const chunkSummary = await summarizer.summarize(chunk);
-      finalSummary += chunkSummary + '\n\n';
+    // Check for user activation before creating the summarizer
+    if (navigator.userActivation.isActive) {
+      summarizer = await Summarizer.create(options);
     }
 
-    summarizer.destroy();
-    return finalSummary;
+    if (summarizer) { // Ensure summarizer is defined
+      // Ensure the model is ready
+      await summarizer.ready;
+
+      showSummary('Summarizing…');
+
+      // Summarize the full text at once
+      text = text.slice(0, MAX_MODEL_CHARS); // Trim to max length
+      const finalSummary = await summarizer.summarize(text);
+
+      summarizer.destroy();
+      return finalSummary;
+    } else {
+      throw new Error('Summarizer could not be created.');
+    }
 
   } catch (e) {
     console.error('Summary generation failed', e);
@@ -83,10 +88,24 @@ async function generateSummary(text) {
   }
 }
 
-// --- Local AI (using Summarizer API) for Music BPM Analysis ---
 async function analyzeMusicGenre(summaryText) {
+  let summarizer;  // Declare summarizer outside the if block
   try {
+    const options = {
+      sharedContext: 'You are a music-savvy assistant. Given a text excerpt, identify the tonally matching music genres and BPM.',
+      type: 'key-points',
+      format: 'plain-text',
+      length: 'short',
+      language: 'en', // Specify the output language as English (you can change this if needed)
+      monitor(m) {
+        m.addEventListener('downloadprogress', (e) => {
+          console.log(`Downloaded ${e.loaded * 100}%`);
+        });
+      }
+    };
+
     const availability = await Summarizer.availability();
+    console.log('Summarizer availability:', availability);
     if (availability === 'unavailable') {
       console.warn('Summarizer API not available for genre analysis.');
       return {
@@ -95,50 +114,61 @@ async function analyzeMusicGenre(summaryText) {
       };
     }
 
-    // Create a new summarizer instance, customized for emotion → music mapping
-    const summarizer = await Summarizer.create({
-      sharedContext: 'You are a music-savvy assistant. Given a text excerpt, identify the tonally matching music genres, and approximate tempo (BPM).',
-      type: 'key-points', // short structured output
-      format: 'plain-text',
-      length: 'short'
-    });
-
-    if (summarizer.downloadProgress) {
-      console.log('Downloading local summarizer model...');
-      await summarizer.downloadProgress;
-    }
-    await summarizer.ready;
-
-    // Ask it to output structured JSON
-    const prompt = `
-    Analyze the following text's emotional tone and energy level.
-    Respond only with JSON:
-    {
-    "genres": ["genre1", "genre2"],
-    "bpm": 100
+    // Check for user activation before creating the summarizer
+    if (navigator.userActivation.isActive) {
+      try {
+        summarizer = await Summarizer.create(options);
+        console.log('Summarizer created successfully:', summarizer);
+      } catch (error) {
+        console.error('Error creating summarizer:', error);
+        throw new Error('Summarizer could not be created.');
+      }
+    } else {
+      // For testing, you can bypass the activation check if you want to see if it works without user activation
+      console.warn('User activation not active, proceeding with summarizer creation...');
+      summarizer = await Summarizer.create(options);
     }
 
-    Text:
-    """${summaryText}"""
-    `;
+    if (summarizer) {
+      // Ensure the model is ready
+      await summarizer.ready;
 
-    const reply = await summarizer.summarize(prompt);
+      // Ask it to output structured JSON
+      const prompt = `
+      Analyze the following text's emotional tone and energy level. 
+      I am going to first provide you with an output template I want, then I will provide the text to analyze.
 
-    summarizer.destroy();
+      Include no sentence summaries. I want this content summarized but you are you output the analysis strictly in the following format. Do not devaite from this format under any circumstances.
 
-    // Attempt to parse JSON output
-    let result;
-    try {
-      result = JSON.parse(reply);
-    } catch {
-      console.warn('Could not parse JSON from Summarizer reply:', reply);
-      result = {
-        bpm: 100,
-        genres: ['failed to parse summarizer json']
-      };
+      Output Format:
+        genres: ["", "", ""]
+        bpm: number
+
+      Text:
+      """${summaryText}"""
+      `;
+
+
+      const reply = await summarizer.summarize(prompt);
+
+      summarizer.destroy();
+
+      // Attempt to parse JSON output
+      // let result;
+      // try {
+      //   result = JSON.parse(reply);
+      // } catch {
+      //   console.warn('Could not parse JSON from Summarizer reply:', reply);
+      //   result = {
+      //     bpm: 100,
+      //     genres: ['failed to parse summarizer json']
+      //   };
+      // }
+
+      return reply;
+    } else {
+      throw new Error('Summarizer could not be created.');
     }
-
-    return result;
   } catch (e) {
     console.error('Music analysis failed:', e);
     return {
@@ -164,15 +194,20 @@ summarizeButton.addEventListener('click', async () => {
 
   const analysis = await analyzeMusicGenre(summary);
 
-  const musicInfo = `
-  ---
-  🎵
-  **Suggested BPM:** ${analysis.bpm}
-  **Genres:** ${analysis.genres.join(', ')}
-  `;
+  let musicInfo;
 
-  showSummary(`${musicInfo} \n\n  ${summary}`);
+  if (analysis.genres && analysis.bpm) {
+    musicInfo = `
+      ---
+      🎵
+      **Suggested BPM:** ${analysis.bpm};
+      **Genres:** ${analysis.genres.join(', ')};
+      `;
+  } else {
+    musicInfo = analysis;
+  }
 
+  showSummary(`${musicInfo}`);
 });
 
 // Update page content when config changes
