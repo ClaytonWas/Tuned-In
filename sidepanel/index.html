@@ -19,8 +19,8 @@
       </div>
 
       <div class="toolbar-item">
-        <input type="checkbox" id="fullTextMode" />
-        <label for="fullTextMode">Full Text</label>
+        <input type="checkbox" id="fullTextMode" title="Process entire page content in chunks (slower but more comprehensive)" />
+        <label for="fullTextMode" title="Process entire page content in chunks (slower but more comprehensive)">Full Text</label>
       </div>
 
       <div class="toolbar-item">
@@ -36,7 +36,7 @@
       </div>
     </div>
 
-    <div class="button-container">
+    <div class="card button-container">
       <button id="summarizeButton">Summarize Page</button>
     </div>
 
@@ -66,7 +66,7 @@
 
     <div class="card" id="historySection">
       <p style="font-size: small;">History</p>
-      <ul id="historyList" style="list-style: none; padding: 0;"></ul>
+      <ul id="historyList"></ul>
     </div>
 
     <script src="index.js" type="module"></script>

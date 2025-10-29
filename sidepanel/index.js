@@ -13,7 +13,7 @@ const warningElement = document.querySelector('#warning');
 const summarizeButton = document.querySelector('#summarizeButton');
 
 const CLIENT_ID = 'd63591e407ff436e8e79bfa1dcc8df18';
-const CLIENT_SECRET = '';
+const CLIENT_SECRET = '5bc18bec7d5e4ed29f267fc9ad462c44';
 
 // Cache the token
 let cachedToken = null;
@@ -435,6 +435,7 @@ fullTextCheckbox.checked = savedFullText;
 
 fullTextCheckbox.addEventListener('change', (e) => {
   localStorage.setItem('fullTextMode', e.checked);
+  onContentChange();
 });
 
 // Button click handler
@@ -563,15 +564,18 @@ function onContentChange() {
     return;
   }
 
+  // Check dynamically based on current checkbox state
+  const fullTextMode = fullTextCheckbox.checked;
+  
   if (pageContent.length > MAX_MODEL_CHARS) {
-    const fullTextMode = fullTextCheckbox.checked;
     if (fullTextMode) {
+      const chunks = Math.ceil(pageContent.length / MAX_MODEL_CHARS);
       updateWarning(
-        `Full text mode enabled. Text will be processed in chunks (${pageContent.length} characters total).`
+        `Full text mode enabled. Text will be processed in ${chunks} chunks (${pageContent.length.toLocaleString()} characters total). This will take longer.`
       );
     } else {
       updateWarning(
-        `Text is very long (${pageContent.length} characters). Only the first ${MAX_MODEL_CHARS} characters will be analyzed. Enable "Full Text Summary" to process the entire page.`
+        `Text is very long (${pageContent.length.toLocaleString()} characters). Only the first ${MAX_MODEL_CHARS.toLocaleString()} characters will be analyzed. Enable "Full Text" to process the entire page (takes longer).`
       );
     }
   } else {
