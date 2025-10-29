@@ -6,6 +6,8 @@ const MAX_MODEL_CHARS = 10000;
 
 let pageContent = '';
 
+let summaryHistory = JSON.parse(localStorage.getItem('summaryHistory') || '[]');
+
 const summaryElement = document.querySelector('#summary');
 const warningElement = document.querySelector('#warning');
 const summarizeButton = document.querySelector('#summarizeButton');
@@ -31,6 +33,43 @@ function updateWarning(warning) {
 function showSummary(text) {
   summaryElement.innerHTML = DOMPurify.sanitize(marked.parse(text));
 }
+
+function renderHistory() {
+  const historyList = document.querySelector('#historyList');
+  historyList.innerHTML = '';
+
+  summaryHistory.forEach(item => {
+    const li = document.createElement('li');
+    li.classList.add('history-item');
+
+    // Spotify embed link
+    const spotifyEmbedUrl = `https://open.spotify.com/embed/track/${item.trackId}`;
+
+    li.innerHTML = `
+      <div style="margin-bottom: 0.5rem;">
+        <a href="${item.pageUrl}" target="_blank">${item.pageTitle}</a>
+      </div>
+      <div>
+        <iframe 
+          src="${spotifyEmbedUrl}" 
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+          loading="lazy">
+        </iframe>
+      </div>
+      <details style="margin-top: 0.5rem;">
+        <summary style="cursor: pointer;">More Info</summary>
+        <div><strong>Track:</strong> ${item.trackName}</div>
+        <div><strong>Artist:</strong> ${item.trackArtist}</div>
+        <div><strong>Suggested Genres:</strong> ${item.genres.join(', ')}</div>
+        <div><strong>Suggested BPM:</strong> ${item.bpm}</div>
+      </details>
+    `;
+
+    historyList.appendChild(li);
+  });
+}
+
+
 
 // Get Spotify access token
 async function getSpotifyToken() {
@@ -303,7 +342,6 @@ summarizeButton.addEventListener('click', async () => {
   }
   
   showSummary('*Analyzing musical characteristics...*');
-  
   const analysis = await analyzeMusicGenre(summary);
 
   // Show analysis data
@@ -328,7 +366,8 @@ summarizeButton.addEventListener('click', async () => {
 
   try {
     const track = await searchSpotifyTracks(analysis.genres, analysis.bpm);
-    
+
+    // ← THIS IS WHERE YOUR BLOCK GOES
     if (track) {
       // Fill UI fields
       trackName.textContent = track.name;
@@ -344,6 +383,29 @@ summarizeButton.addEventListener('click', async () => {
     } else {
       spotifySearchLink.innerHTML = `<a href="https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}" target="_blank">Search manually on Spotify</a>`;
     }
+        
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = tabs[0];
+      const pageUrl = activeTab.url;
+      const pageTitle = activeTab.title;
+
+      // Add to history
+      summaryHistory.unshift({
+        trackName: track.name,
+        trackArtist: track.artists.map(a => a.name).join(', '),
+        genres: analysis.genres,
+        bpm: analysis.bpm,
+        trackId: track.id, 
+        pageUrl,
+        pageTitle
+      });
+
+      // Keep only last 20 entries
+      summaryHistory = summaryHistory.slice(0, 20);
+      localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
+      renderHistory();
+    });
+
   } catch (e) {
     console.error('Error fetching track:', e);
     spotifySearchLink.textContent = `Error fetching track: ${e.message}`;
@@ -386,4 +448,5 @@ function onContentChange() {
 }
 
 // Initialize on load
+renderHistory();
 onContentChange();
