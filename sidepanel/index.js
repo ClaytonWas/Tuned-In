@@ -11,7 +11,7 @@ const warningElement = document.querySelector('#warning');
 const summarizeButton = document.querySelector('#summarizeButton');
 
 const CLIENT_ID = 'd63591e407ff436e8e79bfa1dcc8df18';
-const CLIENT_SECRET = '7ed4be94682d4dbba308a65c839c4b1d';
+const CLIENT_SECRET = 'c0bf3b33eaca4eef98a56b9a17cf1888';
 
 // Cache the token
 let cachedToken = null;
@@ -338,8 +338,6 @@ summarizeButton.addEventListener('click', async () => {
       if (track.album?.images?.[0]?.url) {
         albumCover.src = track.album.images[0].url;
         albumCover.removeAttribute('hidden');
-      } else {
-        albumCover.setAttribute('hidden', '');
       }
 
       trackInfo.removeAttribute('hidden');

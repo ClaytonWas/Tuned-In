@@ -12,20 +12,25 @@
 
     <div class="card" id="summary">Nothing to show...</div>
 
-    <!-- New section for music info -->
-    <div class="card" id="musicInfo" hidden>
-      <h3>Suggested Music</h3>
-      <p><strong>BPM:</strong> <span id="musicBpm">—</span></p>
-      <p><strong>Genres:</strong> <span id="musicGenres">—</span></p>
-      <div id="trackInfo" hidden>
+    <div class="card" style="flex-direction: row;" id="musicInfo" hidden>
+      <p><strong>Suggested Music</strong></p>
+      <div style="flex-direction: row; font-size: small;">
+        <span>
+          Tempo: <span id="musicBpm">—</span>
+        </span>
+        ,
+        <span>
+          Genres: <span id="musicGenres">—</span>
+        </span>
+      </div>
+      <div style="flex-direction: column; font-size: medium;" id="trackInfo" hidden>
         <p><strong>Track:</strong> <span id="trackName">—</span></p>
         <p><strong>Artist:</strong> <span id="trackArtist">—</span></p>
-        <img id="albumCover" src="" alt="Album cover" style="max-width: 150px; border-radius: 8px; margin-top: 5px;" />
+        <img id="albumCover" src="" alt="Album cover" style="max-width: 150px; border-radius: 0.25rem;" />
         <p><a id="spotifyLink" href="#" target="_blank">Listen on Spotify</a></p>
       </div>
       <p id="spotifySearchLink"></p>
     </div>
-
     <script src="index.js" type="module"></script>
   </body>
 </html>
