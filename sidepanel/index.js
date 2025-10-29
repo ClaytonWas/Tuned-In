@@ -34,15 +34,42 @@ function showSummary(text) {
   summaryElement.innerHTML = DOMPurify.sanitize(marked.parse(text));
 }
 
-function renderHistory() {
+// Show skeleton loading UI
+function showSkeletonHistory() {
   const historyList = document.querySelector('#historyList');
+  historyList.innerHTML = `
+    <li class="history-item">
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-embed"></div>
+    </li>
+    <li class="history-item">
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-embed"></div>
+    </li>
+  `;
+}
+
+// Async render history with progressive loading
+async function renderHistory() {
+  const historyList = document.querySelector('#historyList');
+  
+  // Show empty state if no history
+  if (summaryHistory.length === 0) {
+    historyList.innerHTML = '<li style="text-align: center; color: var(--gray-6); padding: 1rem;">No history yet</li>';
+    return;
+  }
+  
+  // Clear skeleton
   historyList.innerHTML = '';
 
-  summaryHistory.forEach(item => {
+  // Render items progressively
+  for (let i = 0; i < summaryHistory.length; i++) {
+    const item = summaryHistory[i];
     const li = document.createElement('li');
     li.classList.add('history-item');
 
-    // Spotify embed link
     const spotifyEmbedUrl = `https://open.spotify.com/embed/track/${item.trackId}`;
 
     li.innerHTML = `
@@ -55,7 +82,7 @@ function renderHistory() {
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
           loading="lazy"
           frameBorder="0"
-          style="border-radius:12px">
+          style="border-radius:12px; width: 100%; height: 80px; border: none;">
         </iframe>
       </div>
       <details style="margin-top: 0.5rem;">
@@ -68,7 +95,13 @@ function renderHistory() {
     `;
 
     historyList.appendChild(li);
-  });
+    updateElementTheme(li, colorThemeSelect.value);
+    
+    // Allow browser to render between items
+    if (i < summaryHistory.length - 1 && i % 3 === 2) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
 }
 
 // Get Spotify access token
@@ -375,12 +408,46 @@ colorThemeSelect.addEventListener('change', (e) => {
 function applyColorTheme(theme) {
   const root = document.documentElement;
   
-  // Get the current CSS and update color references
-  const styleSheets = document.styleSheets;
+  // Update all themed elements
+  const toolbar = document.querySelector('.toolbar');
+  const historySection = document.querySelector('#historySection');
+  const summary = document.querySelector('#summary');
+  const warning = document.querySelector('#warning');
   const historyItems = document.querySelectorAll('.history-item');
   const musicInfo = document.querySelector('#musicInfo');
   const summarizeButton = document.querySelector('#summarizeButton');
   
+  // Apply theme to background
+  document.body.style.backgroundColor = `var(--${theme}-11)`
+
+  // Apply theme to toolbar
+  if (toolbar) {
+    toolbar.style.color = `var(--${theme}-5)`;
+  }
+  
+  // Apply theme to history section
+  if (historySection) {
+    historySection.style.backgroundColor = `var(--${theme}-9)`;
+    historySection.style.borderColor = `var(--${theme}-7)`;
+    historySection.style.color = 'rgb(231, 231, 231)';
+  }
+  
+  // Apply theme to summary
+  if (summary) {
+    summary.style.backgroundColor = `var(--${theme}-9)`;
+    summary.style.borderColor = `var(--${theme}-7)`;
+    summary.style.color = 'rgb(231, 231, 231)';
+  }
+  
+  
+  // Apply theme to warning (now follows theme instead of always orange)
+  if (warning) {
+    warning.style.backgroundColor = `var(--${theme}-9)`;
+    warning.style.borderColor = `var(--${theme}-7)`;
+    warning.style.color = 'rgb(231, 231, 231)';
+  }
+  
+  // Apply theme to history items
   historyItems.forEach(item => {
     updateElementTheme(item, theme);
   });
@@ -395,9 +462,18 @@ function applyColorTheme(theme) {
 }
 
 function updateElementTheme(element, theme) {
+  // Check if this is a history item (needs brighter background)
+  const isHistoryItem = element.classList.contains('history-item');
+  
   // Update border colors
   element.style.borderColor = `var(--${theme}-9)`;
-  element.style.backgroundColor = `var(--${theme}-11)`;
+  
+  // History items use one shade brighter (10 instead of 11)
+  if (isHistoryItem) {
+    element.style.backgroundColor = `var(--${theme}-7)`;
+  } else {
+    element.style.backgroundColor = `var(--${theme}-9)`;
+  }
   
   // Update nested elements
   const details = element.querySelector('details');
@@ -434,7 +510,7 @@ const savedFullText = localStorage.getItem('fullTextMode') === 'true';
 fullTextCheckbox.checked = savedFullText;
 
 fullTextCheckbox.addEventListener('change', (e) => {
-  localStorage.setItem('fullTextMode', e.checked);
+  localStorage.setItem('fullTextMode', e.target.checked);
   onContentChange();
 });
 
@@ -523,12 +599,6 @@ summarizeButton.addEventListener('click', async () => {
       summaryHistory = summaryHistory.slice(0, 20);
       localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
       renderHistory();
-      
-      // Apply theme to newly rendered history items
-      const historyItems = document.querySelectorAll('.history-item');
-      historyItems.forEach(item => {
-        updateElementTheme(item, colorThemeSelect.value);
-      });
     });
 
     showSummary("");
@@ -537,22 +607,6 @@ summarizeButton.addEventListener('click', async () => {
     console.error('Error fetching track:', e);
     spotifySearchLink.textContent = `Error fetching track: ${e.message}`;
     showSummary("Error fetching track");
-  }
-});
-
-// Listen for content from session storage
-chrome.storage.session.get('pageContent', ({ pageContent: storedContent }) => {
-  if (storedContent) {
-    pageContent = storedContent;
-    onContentChange();
-  }
-});
-
-// Update page content if storage changes
-chrome.storage.session.onChanged.addListener((changes) => {
-  if (changes['pageContent']) {
-    pageContent = changes['pageContent'].newValue;
-    onContentChange();
   }
 });
 
@@ -571,11 +625,11 @@ function onContentChange() {
     if (fullTextMode) {
       const chunks = Math.ceil(pageContent.length / MAX_MODEL_CHARS);
       updateWarning(
-        `Full text mode enabled. Text will be processed in ${chunks} chunks (${pageContent.length.toLocaleString()} characters total). This will take longer.`
+        `⚠️ Full text mode enabled. Text will be processed in ${chunks} chunks (${pageContent.length.toLocaleString()} characters total). This will take longer.`
       );
     } else {
       updateWarning(
-        `Text is very long (${pageContent.length.toLocaleString()} characters). Only the first ${MAX_MODEL_CHARS.toLocaleString()} characters will be analyzed. Enable "Full Text" to process the entire page (takes longer).`
+        `⚠️ Text is very long (${pageContent.length.toLocaleString()} characters). Only the first ${MAX_MODEL_CHARS.toLocaleString()} characters will be analyzed. Enable "Full Text" to process the entire page (takes longer).`
       );
     }
   } else {
@@ -585,11 +639,34 @@ function onContentChange() {
   showSummary("Click 'Summarize Page' to generate summary and music recommendations.");
 }
 
-// Initialize on load
-renderHistory();
-// Apply theme to history items on load
-const historyItems = document.querySelectorAll('.history-item');
-historyItems.forEach(item => {
-  updateElementTheme(item, colorThemeSelect.value);
+// ===== LAZY LOADING INITIALIZATION =====
+// Show skeleton UI immediately
+showSkeletonHistory();
+showSummary("Loading...");
+
+// Load history asynchronously after initial render
+setTimeout(() => {
+  renderHistory().then(() => {
+    console.log('History loaded');
+  });
+}, 0);
+
+// Listen for content from session storage - ASYNC
+setTimeout(() => {
+  chrome.storage.session.get('pageContent', ({ pageContent: storedContent }) => {
+    if (storedContent) {
+      pageContent = storedContent;
+      onContentChange();
+    } else {
+      showSummary("There's nothing to summarize");
+    }
+  });
+}, 0);
+
+// Update page content if storage changes
+chrome.storage.session.onChanged.addListener((changes) => {
+  if (changes['pageContent']) {
+    pageContent = changes['pageContent'].newValue;
+    onContentChange();
+  }
 });
-onContentChange();

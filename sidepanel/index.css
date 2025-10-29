@@ -2,18 +2,57 @@
 @import 'https://unpkg.com/open-props/normalize.min.css';
 @import 'https://unpkg.com/open-props/buttons.min.css';
 
-/* Remove .history-item from this rule */
-.card,
-#musicInfo,
-#summarizeButton {
-  width: clamp(150px, 100vw, 600px);
+/* Body with padding for breathing room */
+body {
+  padding: 0.75rem;
+  padding-top: 4rem;
   box-sizing: border-box;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* All card elements with consistent spacing */
+.card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 0.75rem;
+}
+
+#musicInfo,
+.button-container {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 0.75rem;
+}
+
+#summarizeButton {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* First card has top margin */
+.card:first-of-type {
+  margin-top: 0.5rem;
+}
+
+/* Last card has bottom margin */
+.card:last-of-type {
+  margin-bottom: 0.5rem;
 }
 
 /* --- Toolbar container --- */
 .toolbar {
+  position: absolute;   /* Absolute positioning to place the toolbar above the body */
+  top: 0;               /* Aligns the toolbar to the top of the page */
+  left: 50%;            /* Center the toolbar horizontally */
+  transform: translateX(-50%); /* This shifts it back by 50% of its own width */
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -27,14 +66,55 @@
   scrollbar-width: thin;
   width: 100%;
   box-sizing: border-box;
+  padding: 0.5rem 0;
+  border-radius: var(--radius-2);
+  color: rgb(231, 231, 231);
+  z-index: 1000; /* Ensures it stays on top of other elements */
 }
-
 /* --- Toolbar items --- */
 .toolbar-item {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   flex-shrink: 0;
+  position: relative;
+}
+
+/* Tooltip for full text mode */
+.toolbar-item label[for="fullTextMode"] {
+  cursor: help;
+  position: relative;
+}
+
+.toolbar-item label[for="fullTextMode"]:hover::after {
+  content: "Process entire page content in chunks. ⚠️ This takes longer but analyzes the full page.";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--gray-12);
+  color: var(--gray-0);
+  padding: 0.5rem;
+  border-radius: var(--radius-2);
+  font-size: 0.75rem;
+  white-space: normal;
+  width: 200px;
+  text-align: center;
+  z-index: 1000;
+  margin-bottom: 0.25rem;
+  border: 1px solid var(--gray-8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toolbar-item label[for="fullTextMode"]:hover::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--gray-12);
+  z-index: 1001;
 }
 
 /* --- Compact inputs --- */
@@ -69,10 +149,71 @@
   border-radius: var(--radius-2);
 }
 
+/* --- Summary card --- */
+#summary {
+  padding: 0.5rem;
+  background-color: var(--blue-11);
+  border: 1px solid var(--blue-9);
+  border-radius: var(--radius-2);
+  color: rgb(231, 231, 231);
+  font-size: clamp(0.8rem, 1vw, 1rem);
+  line-height: 1.4;
+  min-height: 2rem;
+  box-sizing: border-box;
+  word-wrap: break-word;
+}
+
+/* --- Warning card --- */
+#warning {
+  padding: 0.5rem;
+  background-color: var(--blue-11);
+  border: 1px solid var(--blue-9);
+  border-radius: var(--radius-2);
+  color: rgb(231, 231, 231);
+  font-size: clamp(0.8rem, 1vw, 1rem);
+  line-height: 1.4;
+  box-sizing: border-box;
+  word-wrap: break-word;
+}
+
+/* Loading skeleton styles */
+.skeleton {
+  background: linear-gradient(90deg, var(--gray-8) 25%, var(--gray-7) 50%, var(--gray-8) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+  border-radius: var(--radius-2);
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+  height: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-text:last-child {
+  width: 60%;
+  margin-bottom: 0;
+}
+
+.skeleton-embed {
+  height: 80px;
+  margin-top: 0.25rem;
+}
+
 /* --- Summary History Section & List --- */
 #historySection {
   display: flex;
   flex-direction: column;
+  padding: 0.5rem;
+  background-color: var(--blue-11);
+  border: 1px solid var(--blue-9);
+  border-radius: var(--radius-2);
+  color: rgb(231, 231, 231);
+  box-sizing: border-box;
 }
 
 #historyList {
@@ -94,10 +235,10 @@
   border: 1px solid var(--blue-9);
   border-radius: var(--radius-2);
   margin: 0 !important;
-  padding: 0.25rem;
+  padding: 0.5rem;
   box-sizing: border-box;
   gap: 0.25rem;
-  background-color: var(--blue-11);
+  background-color: var(--blue-10); /* One shade brighter than parent (blue-11) */
   color: rgb(231, 231, 231);
   font-size: clamp(0.8rem, 1vw, 1rem);
   line-height: 1.4;
@@ -151,6 +292,7 @@
   color: rgb(231, 231, 231);
   font-size: clamp(0.8rem, 1vw, 1rem);
   line-height: 1.4;
+  box-sizing: border-box;
 }
 
 /* --- Summarize button --- */
@@ -162,7 +304,8 @@
 }
 
 #summarizeButton {
-  font-size: clamp(0.8rem, 1.2vw, 1rem);
+  font-size: large;
+  font-weight: normal;
   padding: 0.5rem 1rem;
   border: 1px solid var(--blue-9);
   border-radius: var(--radius-2, 8px);
