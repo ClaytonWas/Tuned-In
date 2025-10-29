@@ -123,7 +123,6 @@ async function searchSpotifyTracks(genres, bpm) {
     const tracksWithFeatures = tracks.map((track, i) => ({
       ...track,
       tempo: featuresData.audio_features[i]?.tempo || 0,
-      energy: featuresData.audio_features[i]?.energy || 0.5
     }));
 
     // Find track closest to target BPM
@@ -293,7 +292,8 @@ summarizeButton.addEventListener('click', async () => {
   }
 
   updateWarning('');
-  showSummary('Preparing summary...');
+  showSummary('Summarizing content...');
+  document.querySelector('#musicInfo').setAttribute('hidden', '');
 
   const summary = await generateSummary(pageContent);
   
@@ -302,50 +302,54 @@ summarizeButton.addEventListener('click', async () => {
     return;
   }
   
-  showSummary(summary);
-
-  // Analyze music characteristics
-  showSummary(summary + '\n\n---\n\n*Analyzing musical characteristics...*');
+  showSummary('*Analyzing musical characteristics...*');
   
   const analysis = await analyzeMusicGenre(summary);
 
-  // Build the music info section
-  let musicInfo = `\n\n---\n\n## 🎵 Music Recommendation\n\n`;
-  
-  musicInfo += `**Suggested BPM:** ${analysis.bpm}\n\n`;
-  musicInfo += `**Genres:** ${analysis.genres.join(', ')}\n\n`;
+  // Show analysis data
+  const musicInfo = document.querySelector('#musicInfo');
+  const bpmElem = document.querySelector('#musicBpm');
+  const genresElem = document.querySelector('#musicGenres');
+  const trackInfo = document.querySelector('#trackInfo');
+  const trackName = document.querySelector('#trackName');
+  const trackArtist = document.querySelector('#trackArtist');
+  const albumCover = document.querySelector('#albumCover');
+  const spotifyLink = document.querySelector('#spotifyLink');
+  const spotifySearchLink = document.querySelector('#spotifySearchLink');
 
-  showSummary(summary + musicInfo + '\n*Searching for a matching track...*');
+  bpmElem.textContent = analysis.bpm;
+  genresElem.textContent = analysis.genres.join(', ');
+  trackInfo.setAttribute('hidden', '');
+  albumCover.src = '';
+  spotifySearchLink.textContent = '';
+  musicInfo.removeAttribute('hidden');
 
-  // Search for a track
+  showSummary('*Searching for a matching track...*');
+
   try {
     const track = await searchSpotifyTracks(analysis.genres, analysis.bpm);
     
     if (track) {
-      musicInfo += `---\n\n### 🎧 Suggested Track\n\n`;
-      musicInfo += `**${track.name}**\n\n`;
-      musicInfo += `by ${track.artists.map(a => a.name).join(', ')}\n\n`;
-      if (track.tempo) {
-        musicInfo += `BPM: ${Math.round(track.tempo)} | Energy: ${(track.energy * 100).toFixed(0)}%\n\n`;
-      }
+      // Fill UI fields
+      trackName.textContent = track.name;
+      trackArtist.textContent = track.artists.map(a => a.name).join(', ');
+      spotifyLink.href = track.external_urls.spotify;
+      
       if (track.album?.images?.[0]?.url) {
-        musicInfo += `![Album Cover](${track.album.images[0].url})\n\n`;
+        albumCover.src = track.album.images[0].url;
+        albumCover.removeAttribute('hidden');
+      } else {
+        albumCover.setAttribute('hidden', '');
       }
-      musicInfo += `[▶️ Listen on Spotify](${track.external_urls.spotify})\n\n`;
+
+      trackInfo.removeAttribute('hidden');
     } else {
-      musicInfo += `---\n\n`;
-      musicInfo += `*Could not find a matching track. [Search manually on Spotify](https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))})*\n\n`;
+      spotifySearchLink.innerHTML = `<a href="https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}" target="_blank">Search manually on Spotify</a>`;
     }
   } catch (e) {
     console.error('Error fetching track:', e);
-    musicInfo += `---\n\n*Error fetching track: ${e.message}*\n\n`;
+    spotifySearchLink.textContent = `Error fetching track: ${e.message}`;
   }
-  
-  // Add Spotify search link
-  const searchQuery = encodeURIComponent(analysis.genres.join(' '));
-  musicInfo += `---\n\n[🔍 Explore more on Spotify](https://open.spotify.com/search/${searchQuery})`;
-
-  showSummary(summary + musicInfo);
 });
 
 // Listen for content from session storage

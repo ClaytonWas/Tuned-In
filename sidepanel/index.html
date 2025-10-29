@@ -4,13 +4,27 @@
     <link rel="stylesheet" type="text/css" href="index.css" />
   </head>
   <body>
-    <!-- Button to trigger summarization -->
     <div class="card">
       <button id="summarizeButton">Summarize Page</button>
     </div>
 
     <div class="warning card" hidden id="warning"></div>
+
     <div class="card" id="summary">Nothing to show...</div>
+
+    <!-- New section for music info -->
+    <div class="card" id="musicInfo" hidden>
+      <h3>Suggested Music</h3>
+      <p><strong>BPM:</strong> <span id="musicBpm">—</span></p>
+      <p><strong>Genres:</strong> <span id="musicGenres">—</span></p>
+      <div id="trackInfo" hidden>
+        <p><strong>Track:</strong> <span id="trackName">—</span></p>
+        <p><strong>Artist:</strong> <span id="trackArtist">—</span></p>
+        <img id="albumCover" src="" alt="Album cover" style="max-width: 150px; border-radius: 8px; margin-top: 5px;" />
+        <p><a id="spotifyLink" href="#" target="_blank">Listen on Spotify</a></p>
+      </div>
+      <p id="spotifySearchLink"></p>
+    </div>
 
     <script src="index.js" type="module"></script>
   </body>

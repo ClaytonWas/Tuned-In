@@ -2,6 +2,13 @@
 
 Tuned in is a music recommendation software for chrome browsers that uses a local AI model ([Gemini](https://blog.google/technology/ai/google-gemini-ai/)) and Spotify to read the content on your webpage and find songs that match the emotionality and energy of the page.
 
+# TODO
+[] - Move into popup
+[] - Make better UI
+[] - Add button to change between looping all text chunks and first text chunk ('scan whole page') visibly note that this is an intensive project somewhere
+[] - Add button to support input language for summarizer model
+[] - take a few more looks around to see if there is any 400 issues with spotify and get new secret key before building
+
 ## Why I Built It
 
 I think spotify has a great music recommendation algorithm and appreciated the opportunity to take advantage of that through different content mediums. This local model has provided the chance to develop an application that achieves this goal and has no online overhead or data collection issues.
