@@ -3,11 +3,11 @@
 Tuned in is a music recommendation software for chrome browsers that uses a local AI model ([Gemini](https://blog.google/technology/ai/google-gemini-ai/)) and Spotify to read the content on your webpage and find songs that match the emotionality and energy of the page.
 
 # TODO
-[] - Move into popup
-[] - Make better UI
-[] - Add button to change between looping all text chunks and first text chunk ('scan whole page') visibly note that this is an intensive project somewhere
-[] - Add button to support input language for summarizer model
-[] - take a few more looks around to see if there is any 400 issues with spotify and get new secret key before building
+- [ ] Add gaps between sections of the extension.
+- [ ] Make the sizing of each history item be 100% of the history list.
+- [ ] Change the background colour with the theme tool.
+- [ ] Make the warning for long summary show dynamically if the full text button is enabled or not.
+- [ ] Make extension load lazily for the summary history to not have downtime where nothing is displayed.
 
 ## Why I Built It
 

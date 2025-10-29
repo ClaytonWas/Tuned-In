@@ -2,7 +2,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 
-const MAX_MODEL_CHARS = 10000;
+let MAX_MODEL_CHARS = 10000;
 
 let pageContent = '';
 
@@ -13,7 +13,7 @@ const warningElement = document.querySelector('#warning');
 const summarizeButton = document.querySelector('#summarizeButton');
 
 const CLIENT_ID = 'd63591e407ff436e8e79bfa1dcc8df18';
-const CLIENT_SECRET = 'c0bf3b33eaca4eef98a56b9a17cf1888';
+const CLIENT_SECRET = '';
 
 // Cache the token
 let cachedToken = null;
@@ -53,7 +53,9 @@ function renderHistory() {
         <iframe 
           src="${spotifyEmbedUrl}" 
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-          loading="lazy">
+          loading="lazy"
+          frameBorder="0"
+          style="border-radius:12px">
         </iframe>
       </div>
       <details style="margin-top: 0.5rem;">
@@ -68,8 +70,6 @@ function renderHistory() {
     historyList.appendChild(li);
   });
 }
-
-
 
 // Get Spotify access token
 async function getSpotifyToken() {
@@ -180,8 +180,17 @@ async function searchSpotifyTracks(genres, bpm) {
   }
 }
 
+// Chunk text for full text processing
+function chunkText(text, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < text.length; i += chunkSize) {
+    chunks.push(text.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
 // Main summarization function
-async function generateSummary(text) {
+async function generateSummary(text, fullTextMode) {
   let summarizer;
   try {
     const options = {
@@ -207,10 +216,38 @@ async function generateSummary(text) {
 
     if (summarizer) {
       await summarizer.ready;
-      text = text.slice(0, MAX_MODEL_CHARS);
-      const finalSummary = await summarizer.summarize(text);
-      summarizer.destroy();
-      return finalSummary;
+      
+      if (fullTextMode && text.length > MAX_MODEL_CHARS) {
+        // Process in chunks and combine
+        const chunks = chunkText(text, MAX_MODEL_CHARS);
+        console.log(`Processing ${chunks.length} chunks in full text mode`);
+        
+        const summaries = [];
+        for (let i = 0; i < chunks.length; i++) {
+          showSummary(`Processing chunk ${i + 1} of ${chunks.length}...`);
+          const chunkSummary = await summarizer.summarize(chunks[i]);
+          summaries.push(chunkSummary);
+        }
+        
+        // Combine all chunk summaries
+        const combinedSummary = summaries.join('\n\n');
+        
+        // If combined summary is still too long, summarize it again
+        if (combinedSummary.length > MAX_MODEL_CHARS) {
+          showSummary('Creating final summary...');
+          const finalSummary = await summarizer.summarize(combinedSummary.slice(0, MAX_MODEL_CHARS));
+          summarizer.destroy();
+          return finalSummary;
+        }
+        
+        summarizer.destroy();
+        return combinedSummary;
+      } else {
+        text = text.slice(0, MAX_MODEL_CHARS);
+        const finalSummary = await summarizer.summarize(text);
+        summarizer.destroy();
+        return finalSummary;
+      }
     } else {
       throw new Error('Summarizer could not be created. Click the button to activate.');
     }
@@ -261,7 +298,7 @@ genres: ["genre1", "genre2", "genre3"]
 bpm: number
 
 Rules:
-- Use 2-3 valid Spotify genres (lowercase, no spaces): ambient, acoustic, alternative, blues, classical, country, dance, electronic, folk, hip-hop, indie, jazz, pop, r-n-b, rock, soul
+- Use 2-3 valid Spotify genres (lowercase, no spaces)
 - BPM range: 60-180 based on the content's pace and energy (slow=60-90, medium=90-120, fast=120-180)
 
 Text to analyze:
@@ -323,6 +360,83 @@ Text to analyze:
   }
 }
 
+// Color theme handling
+const colorThemeSelect = document.querySelector('#colorTheme');
+const savedTheme = localStorage.getItem('colorTheme') || 'blue';
+colorThemeSelect.value = savedTheme;
+applyColorTheme(savedTheme);
+
+colorThemeSelect.addEventListener('change', (e) => {
+  const theme = e.target.value;
+  localStorage.setItem('colorTheme', theme);
+  applyColorTheme(theme);
+});
+
+function applyColorTheme(theme) {
+  const root = document.documentElement;
+  
+  // Get the current CSS and update color references
+  const styleSheets = document.styleSheets;
+  const historyItems = document.querySelectorAll('.history-item');
+  const musicInfo = document.querySelector('#musicInfo');
+  const summarizeButton = document.querySelector('#summarizeButton');
+  
+  historyItems.forEach(item => {
+    updateElementTheme(item, theme);
+  });
+  
+  if (musicInfo) {
+    updateElementTheme(musicInfo, theme);
+  }
+
+  if (summarizeButton) {
+    updateElementTheme(summarizeButton, theme);
+  }
+}
+
+function updateElementTheme(element, theme) {
+  // Update border colors
+  element.style.borderColor = `var(--${theme}-9)`;
+  element.style.backgroundColor = `var(--${theme}-11)`;
+  
+  // Update nested elements
+  const details = element.querySelector('details');
+  const summary = element.querySelector('summary');
+  if (details) details.style.backgroundColor = `var(--${theme}-9)`;
+  if (summary) summary.style.backgroundColor = `var(--${theme}-9)`;
+  
+  // Update links
+  const links = element.querySelectorAll('a');
+  links.forEach(link => {
+    link.style.color = `var(--${theme}-2)`;
+  });
+}
+
+// Character limit handling
+const charLimitInput = document.querySelector('#charLimit');
+const charLimitValue = document.querySelector('#charLimitValue');
+const savedCharLimit = localStorage.getItem('charLimit') || '10000';
+charLimitInput.value = savedCharLimit;
+charLimitValue.textContent = savedCharLimit;
+MAX_MODEL_CHARS = parseInt(savedCharLimit, 10);
+
+charLimitInput.addEventListener('input', (e) => {
+  const value = e.target.value;
+  charLimitValue.textContent = value;
+  MAX_MODEL_CHARS = parseInt(value, 10);
+  localStorage.setItem('charLimit', value);
+  onContentChange();
+});
+
+// Full text mode handling
+const fullTextCheckbox = document.querySelector('#fullTextMode');
+const savedFullText = localStorage.getItem('fullTextMode') === 'true';
+fullTextCheckbox.checked = savedFullText;
+
+fullTextCheckbox.addEventListener('change', (e) => {
+  localStorage.setItem('fullTextMode', e.checked);
+});
+
 // Button click handler
 summarizeButton.addEventListener('click', async () => {
   if (!pageContent) {
@@ -334,7 +448,9 @@ summarizeButton.addEventListener('click', async () => {
   showSummary('Summarizing content...');
   document.querySelector('#musicInfo').setAttribute('hidden', '');
 
-  const summary = await generateSummary(pageContent);
+  const fullTextMode = fullTextCheckbox.checked;
+
+  const summary = await generateSummary(pageContent, fullTextMode);
   
   if (summary.startsWith('Error:')) {
     showSummary(summary);
@@ -360,6 +476,9 @@ summarizeButton.addEventListener('click', async () => {
   trackInfo.setAttribute('hidden', '');
   albumCover.src = '';
   spotifySearchLink.textContent = '';
+  
+  // Apply current theme to musicInfo
+  updateElementTheme(musicInfo, colorThemeSelect.value);
   musicInfo.removeAttribute('hidden');
 
   showSummary('*Searching for a matching track...*');
@@ -367,7 +486,6 @@ summarizeButton.addEventListener('click', async () => {
   try {
     const track = await searchSpotifyTracks(analysis.genres, analysis.bpm);
 
-    // ← THIS IS WHERE YOUR BLOCK GOES
     if (track) {
       // Fill UI fields
       trackName.textContent = track.name;
@@ -404,11 +522,20 @@ summarizeButton.addEventListener('click', async () => {
       summaryHistory = summaryHistory.slice(0, 20);
       localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
       renderHistory();
+      
+      // Apply theme to newly rendered history items
+      const historyItems = document.querySelectorAll('.history-item');
+      historyItems.forEach(item => {
+        updateElementTheme(item, colorThemeSelect.value);
+      });
     });
 
+    showSummary("");
+    console.log('Track fetched successfully');
   } catch (e) {
     console.error('Error fetching track:', e);
     spotifySearchLink.textContent = `Error fetching track: ${e.message}`;
+    showSummary("Error fetching track");
   }
 });
 
@@ -437,9 +564,16 @@ function onContentChange() {
   }
 
   if (pageContent.length > MAX_MODEL_CHARS) {
-    updateWarning(
-      `Text is very long (${pageContent.length} characters). Only the first ${MAX_MODEL_CHARS} characters will be analyzed.`
-    );
+    const fullTextMode = fullTextCheckbox.checked;
+    if (fullTextMode) {
+      updateWarning(
+        `Full text mode enabled. Text will be processed in chunks (${pageContent.length} characters total).`
+      );
+    } else {
+      updateWarning(
+        `Text is very long (${pageContent.length} characters). Only the first ${MAX_MODEL_CHARS} characters will be analyzed. Enable "Full Text Summary" to process the entire page.`
+      );
+    }
   } else {
     updateWarning('');
   }
@@ -449,4 +583,9 @@ function onContentChange() {
 
 // Initialize on load
 renderHistory();
+// Apply theme to history items on load
+const historyItems = document.querySelectorAll('.history-item');
+historyItems.forEach(item => {
+  updateElementTheme(item, colorThemeSelect.value);
+});
 onContentChange();
