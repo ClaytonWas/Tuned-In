@@ -636,7 +636,7 @@ function onContentChange() {
     updateWarning('');
   }
 
-  showSummary("Click 'Summarize Page' to generate summary and music recommendations.");
+  showSummary("Music Generation Possible");
 }
 
 // ===== LAZY LOADING INITIALIZATION =====
@@ -658,7 +658,7 @@ setTimeout(() => {
       pageContent = storedContent;
       onContentChange();
     } else {
-      showSummary("There's nothing to summarize");
+      showSummary("There's nothing to summarize.");
     }
   });
 }, 0);

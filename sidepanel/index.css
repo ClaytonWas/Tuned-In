@@ -80,43 +80,6 @@ body {
   position: relative;
 }
 
-/* Tooltip for full text mode */
-.toolbar-item label[for="fullTextMode"] {
-  cursor: help;
-  position: relative;
-}
-
-.toolbar-item label[for="fullTextMode"]:hover::after {
-  content: "Process entire page content in chunks. ⚠️ This takes longer but analyzes the full page.";
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: var(--gray-12);
-  color: var(--gray-0);
-  padding: 0.5rem;
-  border-radius: var(--radius-2);
-  font-size: 0.75rem;
-  white-space: normal;
-  width: 200px;
-  text-align: center;
-  z-index: 1000;
-  margin-bottom: 0.25rem;
-  border: 1px solid var(--gray-8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.toolbar-item label[for="fullTextMode"]:hover::before {
-  content: "";
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: var(--gray-12);
-  z-index: 1001;
-}
-
 /* --- Compact inputs --- */
 .toolbar select,
 .toolbar input[type="range"] {
@@ -152,8 +115,8 @@ body {
 /* --- Summary card --- */
 #summary {
   padding: 0.5rem;
-  background-color: var(--blue-11);
-  border: 1px solid var(--blue-9);
+  background-color: var(--gray-11);
+  border: 1px solid var(--gray-9);
   border-radius: var(--radius-2);
   color: rgb(231, 231, 231);
   font-size: clamp(0.8rem, 1vw, 1rem);
@@ -166,8 +129,8 @@ body {
 /* --- Warning card --- */
 #warning {
   padding: 0.5rem;
-  background-color: var(--blue-11);
-  border: 1px solid var(--blue-9);
+  background-color: var(--gray-11);
+  border: 1px solid var(--gray-9);
   border-radius: var(--radius-2);
   color: rgb(231, 231, 231);
   font-size: clamp(0.8rem, 1vw, 1rem);
@@ -209,8 +172,8 @@ body {
   display: flex;
   flex-direction: column;
   padding: 0.5rem;
-  background-color: var(--blue-11);
-  border: 1px solid var(--blue-9);
+  background-color: var(--gray-11);
+  border: 1px solid var(--gray-9);
   border-radius: var(--radius-2);
   color: rgb(231, 231, 231);
   box-sizing: border-box;
@@ -232,36 +195,36 @@ body {
 .history-item {
   width: 100% !important; /* Force 100% width */
   max-width: 100%; /* Ensure it doesn't overflow */
-  border: 1px solid var(--blue-9);
+  border: 1px solid var(--gray-9);
   border-radius: var(--radius-2);
   margin: 0 !important;
   padding: 0.5rem;
   box-sizing: border-box;
   gap: 0.25rem;
-  background-color: var(--blue-10); /* One shade brighter than parent (blue-11) */
+  background-color: var(--gray-10); /* One shade brighter than parent (gray-11) */
   color: rgb(231, 231, 231);
   font-size: clamp(0.8rem, 1vw, 1rem);
   line-height: 1.4;
 }
 
 .history-item:hover {
-  border: 1px solid var(--blue-7);
+  border: 1px solid var(--gray-7);
 }
 
 .history-item:active {
-  border: 1px solid var(--blue-7);
-  background-color: var(--blue-10);
+  border: 1px solid var(--gray-7);
+  background-color: var(--gray-10);
 }
 
 .history-item a {
   font-size: 1.1rem;
   font-weight: bold;
-  color: var(--blue-2);
+  color: var(--gray-2);
   text-decoration: none;
 }
 
 .history-item a:hover {
-  color: var(--blue-1);
+  color: var(--gray-1);
   text-decoration: underline;
   word-break: break-word;
 }
@@ -275,20 +238,20 @@ body {
 }
 
 .history-item details {
-  background-color: var(--blue-9);
+  background-color: var(--gray-9);
 }
 
 .history-item summary {
-  background-color: var(--blue-9);
+  background-color: var(--gray-9);
 }
 
 /* --- Current Music Info item --- */
 #musicInfo {
-  border: 1px solid var(--blue-9);
+  border: 1px solid var(--gray-9);
   border-radius: var(--radius-2);
   padding: 0.5rem;
   margin-bottom: 0.5rem;
-  background-color: var(--blue-11);
+  background-color: var(--gray-11);
   color: rgb(231, 231, 231);
   font-size: clamp(0.8rem, 1vw, 1rem);
   line-height: 1.4;
@@ -307,21 +270,21 @@ body {
   font-size: large;
   font-weight: normal;
   padding: 0.5rem 1rem;
-  border: 1px solid var(--blue-9);
+  border: 1px solid var(--gray-9);
   border-radius: var(--radius-2, 8px);
-  background-color: var(--blue-9);
+  background-color: var(--gray-9);
   color: rgb(231, 231, 231);
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
 #summarizeButton:hover {
-  background-color: var(--blue-8);
-  border: 1px solid var(--blue-7);
+  background-color: var(--gray-8);
+  border: 1px solid var(--gray-7);
   transform: translateY(-1px);
 }
 
 #summarizeButton:active {
-  background-color: var(--blue-10);
+  background-color: var(--gray-10);
   transform: translateY(0);
 }

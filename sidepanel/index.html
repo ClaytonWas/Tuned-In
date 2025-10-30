@@ -5,7 +5,7 @@
   </head>
   <body>
     <div class="card toolbar">
-      <div class="toolbar-item">
+      <div class="toolbar-item" title="Change colour theme">
         <label for="colorTheme">Theme:</label>
         <select id="colorTheme">
           <option value="gray">Gray</option>
@@ -20,19 +20,19 @@
         </select>
       </div>
 
-      <div class="toolbar-item">
-        <input type="checkbox" id="fullTextMode" title="Process entire page content in chunks (slower but more comprehensive)" />
-        <label for="fullTextMode" title="Process entire page content in chunks (slower but more comprehensive)">Full Text</label>
+      <div class="toolbar-item" title="Process entire page content in chunks (slower but more comprehensive)">
+        <label for="fullTextMode">Full Text</label>
+        <input type="checkbox" id="fullTextMode" />
       </div>
 
-      <div class="toolbar-item">
-        <label for="charLimit">Limit: <span id="charLimitValue">10000</span></label>
+      <div class="toolbar-item" title="The amount of characters sent in each summarization chunk">
+        <label for="charLimit">Chunk: <span id="charLimitValue">10000</span></label>
         <input
           type="range"
           id="charLimit"
           min="4000"
           max="10000"
-          value="10000"
+          value="7500"
           step="500"
         />
       </div>
