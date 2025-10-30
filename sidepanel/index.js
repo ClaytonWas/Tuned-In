@@ -182,7 +182,7 @@ async function searchSpotifyTracks(genres, bpm) {
     });
 
     if (!featuresRes.ok) {
-      console.warn('Could not fetch audio features, returning random track');
+      //console.warn('Could not fetch audio features, returning random track');
       const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
       return randomTrack;
     }
@@ -225,6 +225,8 @@ async function generateSummary(text, fullTextMode) {
     const options = {
       sharedContext: 'This is a website.',
       type: 'key-points',
+      expectedInputLanguages: ["en", "ja", "es"],
+      outputLanguage: "en",
       format: 'plain-text',
       length: 'short',
       monitor(m) {
@@ -272,6 +274,7 @@ async function generateSummary(text, fullTextMode) {
         summarizer.destroy();
         return combinedSummary;
       } else {
+        
         text = text.slice(0, MAX_MODEL_CHARS);
         const finalSummary = await summarizer.summarize(text);
         summarizer.destroy();
@@ -294,6 +297,8 @@ async function analyzeMusicGenre(summaryText) {
     const options = {
       sharedContext: 'You are a music analyst. Analyze text and suggest matching music characteristics.',
       type: 'key-points',
+      expectedInputLanguages: ["en", "ja", "es"],
+      outputLanguage: "en",
       format: 'plain-text',
       length: 'short',
       monitor(m) {
