@@ -12,9 +12,6 @@ const summaryElement = document.querySelector('#summary');
 const warningElement = document.querySelector('#warning');
 const summarizeButton = document.querySelector('#summarizeButton');
 
-const CLIENT_ID = 'd63591e407ff436e8e79bfa1dcc8df18';
-const CLIENT_SECRET = '5bc18bec7d5e4ed29f267fc9ad462c44';
-
 // Cache the token
 let cachedToken = null;
 let tokenExpiry = null;
@@ -57,7 +54,7 @@ async function renderHistory() {
   
   // Show empty state if no history
   if (summaryHistory.length === 0) {
-    historyList.innerHTML = '<li style="text-align: center; color: var(--gray-6); padding: 1rem;">No history yet</li>';
+    historyList.innerHTML = '<li style="text-align: center; padding: 1rem;">No history yet</li>';
     return;
   }
   
@@ -73,9 +70,6 @@ async function renderHistory() {
     const spotifyEmbedUrl = `https://open.spotify.com/embed/track/${item.trackId}`;
 
     li.innerHTML = `
-      <div style="margin-bottom: 0.5rem;">
-        <a href="${item.pageUrl}" target="_blank">${item.pageTitle}</a>
-      </div>
       <div>
         <iframe 
           src="${spotifyEmbedUrl}" 
@@ -85,12 +79,15 @@ async function renderHistory() {
           style="border-radius:12px; width: 100%; height: 80px; border: none;">
         </iframe>
       </div>
+      <div style="margin-bottom: 0.5rem;">
+        <a href="${item.pageUrl}" target="_blank">${item.pageTitle}</a>
+      </div>
       <details style="margin-top: 0.5rem;">
         <summary style="cursor: pointer;">More Info</summary>
-        <div><strong>Track:</strong> ${item.trackName}</div>
-        <div><strong>Artist:</strong> ${item.trackArtist}</div>
-        <div><strong>Suggested Genres:</strong> ${item.genres.join(', ')}</div>
-        <div><strong>Suggested BPM:</strong> ${item.bpm}</div>
+        <div style="display: flex; justify-content: space-between;">Track: <span>${item.trackName}</span></div>
+        <div style="display: flex; justify-content: space-between;">Artist: <span>${item.trackArtist}</span></div>
+        <div style="display: flex; justify-content: space-between;">Suggested Genres: <span>${item.genres.join(', ')}</span></div>
+        <div style="display: flex; justify-content: space-between;">Suggested BPM:<span>${item.bpm}</span></div>
       </details>
     `;
 
@@ -113,15 +110,13 @@ async function getSpotifyToken() {
   }
 
   try {
-    console.log('Fetching new Spotify token via Client Credentials...');
+    console.log('Fetching new Spotify token from serverless function...');
     
-    const res = await fetch('https://accounts.spotify.com/api/token', {
+    const res = await fetch('https://tuned-in-api.vercel.app/api/spotify-token', {
       method: 'POST',
       headers: {
-        'Authorization': 'Basic ' + btoa(`${CLIENT_ID}:${CLIENT_SECRET}`),
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: 'grant_type=client_credentials'
+        'Content-Type': 'application/json'
+      }
     });
 
     if (!res.ok) {
@@ -131,7 +126,7 @@ async function getSpotifyToken() {
     }
 
     const data = await res.json();
-    console.log('Token received, expires in:', data.expires_in, 'seconds');
+    console.log('Token received from serverless function');
     
     // Cache the token
     cachedToken = data.access_token;
@@ -395,7 +390,7 @@ Text to analyze:
 
 // Color theme handling
 const colorThemeSelect = document.querySelector('#colorTheme');
-const savedTheme = localStorage.getItem('colorTheme') || 'blue';
+const savedTheme = localStorage.getItem('colorTheme') || 'gray';
 colorThemeSelect.value = savedTheme;
 applyColorTheme(savedTheme);
 
@@ -410,55 +405,42 @@ function applyColorTheme(theme) {
   
   // Update all themed elements
   const toolbar = document.querySelector('.toolbar');
-  const historySection = document.querySelector('#historySection');
   const summary = document.querySelector('#summary');
   const warning = document.querySelector('#warning');
   const historyItems = document.querySelectorAll('.history-item');
   const musicInfo = document.querySelector('#musicInfo');
   const summarizeButton = document.querySelector('#summarizeButton');
   
-  // Apply theme to background
-  document.body.style.backgroundColor = `var(--${theme}-11)`
+  // Apply themes
+  document.body.style.backgroundColor = `var(--${theme}-9)`
 
-  // Apply theme to toolbar
   if (toolbar) {
-    toolbar.style.color = `var(--${theme}-5)`;
+    toolbar.style.color = `var(--${theme}-2)`;
   }
   
-  // Apply theme to history section
-  if (historySection) {
-    historySection.style.backgroundColor = `var(--${theme}-9)`;
-    historySection.style.borderColor = `var(--${theme}-7)`;
-    historySection.style.color = 'rgb(231, 231, 231)';
+  if (summarizeButton) {
+    updateElementTheme(summarizeButton, theme);
   }
-  
-  // Apply theme to summary
-  if (summary) {
-    summary.style.backgroundColor = `var(--${theme}-9)`;
-    summary.style.borderColor = `var(--${theme}-7)`;
-    summary.style.color = 'rgb(231, 231, 231)';
-  }
-  
-  
-  // Apply theme to warning (now follows theme instead of always orange)
-  if (warning) {
-    warning.style.backgroundColor = `var(--${theme}-9)`;
-    warning.style.borderColor = `var(--${theme}-7)`;
-    warning.style.color = 'rgb(231, 231, 231)';
-  }
-  
-  // Apply theme to history items
-  historyItems.forEach(item => {
-    updateElementTheme(item, theme);
-  });
-  
+
   if (musicInfo) {
     updateElementTheme(musicInfo, theme);
   }
 
-  if (summarizeButton) {
-    updateElementTheme(summarizeButton, theme);
+  if (summary) {
+    summary.style.backgroundColor = `var(--${theme}-10)`;
+    summary.style.borderColor = `var(--${theme}-12)`;
+    summary.style.color = 'rgb(231, 231, 231)';
   }
+  
+  if (warning) {
+    warning.style.backgroundColor = `var(--${theme}-10)`;
+    warning.style.borderColor = `var(--${theme}-12)`;
+    warning.style.color = 'rgb(231, 231, 231)';
+  }
+  
+  historyItems.forEach(item => {
+    updateElementTheme(item, theme);
+  });
 }
 
 function updateElementTheme(element, theme) {
@@ -466,25 +448,25 @@ function updateElementTheme(element, theme) {
   const isHistoryItem = element.classList.contains('history-item');
   
   // Update border colors
-  element.style.borderColor = `var(--${theme}-9)`;
+  element.style.borderColor = `var(--${theme}-12)`;
   
-  // History items use one shade brighter (10 instead of 11)
   if (isHistoryItem) {
-    element.style.backgroundColor = `var(--${theme}-7)`;
+    element.style.backgroundColor = `var(--${theme}-10)`;
+    element.style.borderColor = `var(--${theme}-12)`;
   } else {
-    element.style.backgroundColor = `var(--${theme}-9)`;
+    element.style.backgroundColor = `var(--${theme}-10)`;
   }
   
   // Update nested elements
   const details = element.querySelector('details');
   const summary = element.querySelector('summary');
-  if (details) details.style.backgroundColor = `var(--${theme}-9)`;
-  if (summary) summary.style.backgroundColor = `var(--${theme}-9)`;
+  if (details) details.style.backgroundColor = `var(--${theme}-10)`;
+  if (summary) summary.style.backgroundColor = `var(--${theme}-10)`;
   
   // Update links
   const links = element.querySelectorAll('a');
   links.forEach(link => {
-    link.style.color = `var(--${theme}-2)`;
+    link.style.color = `var(--${theme}-4)`;
   });
 }
 
@@ -558,7 +540,7 @@ summarizeButton.addEventListener('click', async () => {
   updateElementTheme(musicInfo, colorThemeSelect.value);
   musicInfo.removeAttribute('hidden');
 
-  showSummary('*Searching for a matching track...*');
+  showSummary('Searching for a matching track...');
 
   try {
     const track = await searchSpotifyTracks(analysis.genres, analysis.bpm);
@@ -601,8 +583,7 @@ summarizeButton.addEventListener('click', async () => {
       renderHistory();
     });
 
-    showSummary("");
-    console.log('Track fetched successfully');
+    showSummary("Track fetched successfully");
   } catch (e) {
     console.error('Error fetching track:', e);
     spotifySearchLink.textContent = `Error fetching track: ${e.message}`;

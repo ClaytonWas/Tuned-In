@@ -47,29 +47,31 @@
     <div class="warning card" hidden id="warning"></div>
 
     <div class="card" style="flex-direction: row;" id="musicInfo" hidden>
-      <p><strong>Suggested Music</strong></p>
-      <div style="flex-direction: row; font-size: small;">
-        <span>
-          Tempo: <span id="musicBpm">—</span>
-        </span>
-        ,
-        <span>
-          Genres: <span id="musicGenres">—</span>
-        </span>
-      </div>
+      <p style="font-size: small;">Suggested Track</p>
       <div style="flex-direction: column; font-size: medium;" id="trackInfo" hidden>
-        <p><strong>Track:</strong> <span id="trackName">—</span></p>
-        <p><strong>Artist:</strong> <span id="trackArtist">—</span></p>
+        <p id="spotifySearchLink">Listen on Spotify</p>
+        <p><a id="spotifyLink" href="#" target="_blank">
+          <strong><span id="trackName" style="font-size: large;">—</span></strong>
+          <br>
+          <span id="trackArtist" style="font-size: medium;">—</span>
+        </a></p>
         <img id="albumCover" src="" alt="Album cover" style="max-width: 150px; border-radius: 0.25rem;" />
-        <p><a id="spotifyLink" href="#" target="_blank">Listen on Spotify</a></p>
+        <div>
+          <p style="font-size: small;">Track recommended on following analysis:</p>
+          <div style="flex-direction: row; font-size: small;">
+              <span>
+                Tempo: <span id="musicBpm">—</span>
+              </span>,
+              <span>
+                Genres: <span id="musicGenres">—</span>
+              </span>
+          </div>
+        </div>
       </div>
-      <p id="spotifySearchLink"></p>
     </div>
 
-    <div class="card" id="historySection">
-      <p style="font-size: small;">History</p>
-      <ul id="historyList"></ul>
-    </div>
+    <p style="font-size: small;">History</p>
+    <ul id="historyList"></ul>
 
     <script src="index.js" type="module"></script>
   </body>
