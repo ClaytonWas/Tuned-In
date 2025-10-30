@@ -2,10 +2,6 @@
 
 Tuned in is a music recommendation software for chrome browsers that uses a local AI model ([Gemini](https://blog.google/technology/ai/google-gemini-ai/)) and Spotify to read the content on your webpage and find songs that match the emotionality and energy of the page.
 
-# TODO
-- [] Deploy chrome extension and move trial tokens
-- [] Submit devpost
-
 ## Why I Built It
 
 I think spotify has a great music recommendation algorithm and appreciated the opportunity to take advantage of that through different content mediums. This local model has provided the chance to develop an application that achieves this goal and has no online overhead or data collection issues.
@@ -23,7 +19,6 @@ Specifically, this extension asks the model for a genre and tempo and calls the 
 - [Exotic olive oil websites](https://groveandvine.com/our-process/)
 
 
-
 ## On-device Summarization with Gemini Nano
 
 [summarizer guide on developer.chrome.com](https://developer.chrome.com/docs/ai/summarizer-api).
@@ -36,9 +31,10 @@ It uses Mozilla's [readability](https://github.com/mozilla/readability) library 
 2. Run `npm install` in this folder to install all dependencies.
 3. Run `npm run build` to build the extension.
 4. Load the newly created `dist` directory in Chrome as an [unpacked extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked).
-5. Click the extension icon to open the summary side panel.
-6. Open any web page, the page's content summary will automatically be displayed in the side panel.
+5. Deploy a [Spotify API](https://github.com/ClaytonWas/tuned-in-api) endpoint with [Spotify for Developers](https://developer.spotify.com/)
+6. Click the extension icon to open the summary side panel.
+7. Open any web page, the page's content summary will automatically be displayed in the side panel.
 
 ## Creating your own extension
 
-If you use this sample as the foundation for your own extension, be sure to update the `"trial_tokens"` field [with your own origin trial token](https://developer.chrome.com/docs/web-platform/origin-trials#extensions) and to remove the `"key"` field in `manifest.json`.
+If you use this sample as the foundation for your own extension, be sure to update the `"trial_tokens"` field [with your own origin trial token](https://developer.chrome.com/docs/web-platform/origin-trials#extensions) and to remove the `"key"` field in `manifest.json`. The **Summarizer** API is an extension of the **Writer** API, get your trial token from there.
