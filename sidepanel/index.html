@@ -42,10 +42,6 @@
       <button id="summarizeButton">Generate Music Recommendation</button>
     </div>
 
-    <div class="card" id="summary">Nothing to show...</div>
-
-    <div class="warning card" hidden id="warning"></div>
-
     <div class="card" style="flex-direction: row;" id="musicInfo" hidden>
       <p style="font-size: small;">Suggested Track</p>
       <div style="flex-direction: column; font-size: medium;" id="trackInfo" hidden>
@@ -55,7 +51,7 @@
           <br>
           <span id="trackArtist" style="font-size: medium;">—</span>
         </a></p>
-        <img id="albumCover" src="" alt="Album cover" style="max-width: 150px; border-radius: 0.25rem;" />
+        <img id="albumCover" src="" alt="Album cover" style="max-height: 100%; border-radius: 0.25rem;" />
         <div>
           <p style="font-size: small;">Track recommended on following analysis:</p>
           <div style="flex-direction: row; font-size: small;">
@@ -69,6 +65,10 @@
         </div>
       </div>
     </div>
+
+    <div class="card" id="summary">Nothing to show...</div>
+
+    <div class="warning card" hidden id="warning"></div>
 
     <p style="font-size: small;">History</p>
     <ul id="historyList"></ul>

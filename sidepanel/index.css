@@ -115,22 +115,26 @@ body {
 /* --- Summary card --- */
 #summary {
   padding: 0.75rem;
-  background-color: var(--gray-11);
-  border: 1px solid var(--gray-9);
+  background-color: var(--gray-10);
+  border: 1px solid var(--gray-12);
   border-radius: var(--radius-3);
   color: rgb(231, 231, 231);
-  font-size: small;
+  font-size: 0.75rem;
   line-height: 1.4;
   min-height: 2rem;
   box-sizing: border-box;
   word-wrap: break-word;
 }
 
+#summary * {
+  font-size: 1rem !important;
+}
+
 /* --- Warning card --- */
 #warning {
   padding: 0.75rem;
-  background-color: var(--gray-11);
-  border: 1px solid var(--gray-9);
+  background-color: var(--gray-10);
+  border: 1px solid var(--gray-12);
   border-radius: var(--radius-3);
   color: rgb(231, 231, 231);
   font-size: small;
@@ -187,7 +191,7 @@ body {
   align-items: stretch; /* Changed from center to stretch */
   margin: 0;
   margin-top: 0.25rem;
-  gap: 0.25rem;
+  gap: 1rem;
   width: 100%; /* Added to fill parent width */
   box-sizing: border-box;
 }
@@ -222,6 +226,10 @@ body {
   text-decoration: none;
 }
 
+.history-item p {
+  font-size: x-small;
+}
+
 .history-item a:hover {
   color: var(--gray-1);
   text-decoration: underline;
@@ -245,15 +253,16 @@ body {
   border-radius: var(--radius-3);
   font-size: x-small;
   background-color: var(--gray-9);
+  padding: 0;
 }
 
 /* --- Current Music Info item --- */
 #musicInfo {
-  border: 1px solid var(--gray-9);
+  border: 1px solid var(--gray-12);
   border-radius: var(--radius-3);
   padding: 0.5rem;
   margin-bottom: 0.5rem;
-  background-color: var(--gray-11);
+  background-color: var(--gray-8);
   color: rgb(231, 231, 231);
   font-size: clamp(0.8rem, 1vw, 1rem);
   line-height: 1.4;
@@ -272,9 +281,9 @@ body {
   font-size: large;
   font-weight: normal;
   padding: 0.5rem 1rem;
-  border: 1px solid var(--gray-9);
+  border: 1px solid var(--gray-10);
   border-radius: var(--radius-3);
-  background-color: var(--gray-9);
+  background-color: var(--gray-8);
   color: rgb(231, 231, 231);
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;

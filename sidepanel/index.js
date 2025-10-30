@@ -5,7 +5,7 @@ import { marked } from 'marked';
 let MAX_MODEL_CHARS = 10000;
 
 let pageContent = '';
-
+let isAnalyzing = false;
 let summaryHistory = JSON.parse(localStorage.getItem('summaryHistory') || '[]');
 
 const summaryElement = document.querySelector('#summary');
@@ -80,7 +80,8 @@ async function renderHistory() {
         </iframe>
       </div>
       <div style="margin-bottom: 0.5rem;">
-        <a href="${item.pageUrl}" target="_blank">${item.pageTitle}</a>
+        <p>Source:</p>
+        <strong><a href="${item.pageUrl}" target="_blank">${item.pageTitle}</a></strong>
       </div>
       <details style="margin-top: 0.5rem;">
         <summary style="cursor: pointer;">More Info</summary>
@@ -412,10 +413,10 @@ function applyColorTheme(theme) {
   const summarizeButton = document.querySelector('#summarizeButton');
   
   // Apply themes
-  document.body.style.backgroundColor = `var(--${theme}-9)`
+  document.body.style.backgroundColor = `var(--${theme}-11)`
 
   if (toolbar) {
-    toolbar.style.color = `var(--${theme}-2)`;
+    toolbar.style.color = `var(--${theme}-3)`;
   }
   
   if (summarizeButton) {
@@ -454,7 +455,8 @@ function updateElementTheme(element, theme) {
     element.style.backgroundColor = `var(--${theme}-10)`;
     element.style.borderColor = `var(--${theme}-12)`;
   } else {
-    element.style.backgroundColor = `var(--${theme}-10)`;
+    element.style.backgroundColor = `var(--${theme}-8)`;
+    element.style.borderColor = `var(--${theme}-10)`;
   }
   
   // Update nested elements
@@ -463,10 +465,14 @@ function updateElementTheme(element, theme) {
   if (details) details.style.backgroundColor = `var(--${theme}-10)`;
   if (summary) summary.style.backgroundColor = `var(--${theme}-10)`;
   
-  // Update links
+  // Update links with different colors for history items
   const links = element.querySelectorAll('a');
   links.forEach(link => {
-    link.style.color = `var(--${theme}-4)`;
+    if (isHistoryItem) {
+      link.style.color = `var(--${theme}-5)`;
+    } else {
+      link.style.color = `var(--${theme}-1)`;
+    }
   });
 }
 
@@ -499,8 +505,22 @@ fullTextCheckbox.addEventListener('change', (e) => {
 // Button click handler
 summarizeButton.addEventListener('click', async () => {
   if (!pageContent) {
-    updateWarning("There's nothing to summarize");
+    updateWarning("");
     return;
+  }
+
+  isAnalyzing = true;
+
+  // Get the current page title at click time
+  let currentPageTitle, currentPageUrl;
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    currentPageTitle = activeTab.title;
+    currentPageUrl = activeTab.url;
+  } catch (e) {
+    console.error('Error getting page title:', e);
+    currentPageTitle = 'Unknown Page';
+    currentPageUrl = '#';
   }
 
   updateWarning('');
@@ -542,8 +562,10 @@ summarizeButton.addEventListener('click', async () => {
 
   showSummary('Searching for a matching track...');
 
+  
   try {
     const track = await searchSpotifyTracks(analysis.genres, analysis.bpm);
+    isAnalyzing = false;
 
     if (track) {
       // Fill UI fields
@@ -557,44 +579,50 @@ summarizeButton.addEventListener('click', async () => {
       }
 
       trackInfo.removeAttribute('hidden');
-    } else {
-      spotifySearchLink.innerHTML = `<a href="https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}" target="_blank">Search manually on Spotify</a>`;
-    }
-        
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
-      const pageUrl = activeTab.url;
-      const pageTitle = activeTab.title;
-
-      // Add to history
+      
+      // Add to history with the title from when button was clicked
       summaryHistory.unshift({
         trackName: track.name,
         trackArtist: track.artists.map(a => a.name).join(', '),
         genres: analysis.genres,
         bpm: analysis.bpm,
-        trackId: track.id, 
-        pageUrl,
-        pageTitle
+        trackId: track.id,
+        pageUrl: currentPageUrl,
+        pageTitle: currentPageTitle
       });
 
       // Keep only last 20 entries
       summaryHistory = summaryHistory.slice(0, 20);
       localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
       renderHistory();
-    });
 
-    showSummary("Track fetched successfully");
+      // Hide summary on successful track fetch
+      summaryElement.setAttribute('hidden', '');
+    } else {
+      spotifySearchLink.innerHTML = `<a href="https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}" target="_blank">Search manually on Spotify</a>`;
+      summaryElement.removeAttribute('hidden');
+      showSummary("Could not find a matching track");
+    }
+
   } catch (e) {
+    isAnalyzing = false;
     console.error('Error fetching track:', e);
     spotifySearchLink.textContent = `Error fetching track: ${e.message}`;
+    summaryElement.removeAttribute('hidden');
     showSummary("Error fetching track");
   }
 });
 
 // Handle content changes
 function onContentChange() {
+  if (isAnalyzing) {
+    return;
+  }
+
+  summaryElement.removeAttribute('hidden');
+  
   if (!pageContent) {
-    showSummary("There's nothing to summarize");
+    showSummary("Music Generation Not Currently Possible (There's nothing to summarize)");
     updateWarning('');
     return;
   }
@@ -639,7 +667,7 @@ setTimeout(() => {
       pageContent = storedContent;
       onContentChange();
     } else {
-      showSummary("There's nothing to summarize.");
+      showSummary("Music Generation Not Currently Possible (There's nothing to summarize)");
     }
   });
 }, 0);
