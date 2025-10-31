@@ -141,7 +141,6 @@ async function getSpotifyToken() {
 }
 
 // Search for tracks on Spotify using genre seeds + tempo
-// Search for tracks on Spotify using genre seeds + tempo (no /audio-features)
 async function searchSpotifyTracks(genres, bpm) {
   try {
     const token = await getSpotifyToken();
@@ -155,7 +154,7 @@ async function searchSpotifyTracks(genres, bpm) {
       console.log(`Attempt ${attempt}: Using genre seeds:`, genreSeeds.join(', '));
 
       const query = new URLSearchParams({
-        seed_genres: genreSeeds.slice(0, 5).join(','), // Spotify allows max 5 seeds
+        seed_genres: genreSeeds.slice(0, 5).join(','),
         target_tempo: bpm,
         limit: '10'
       });
@@ -185,7 +184,7 @@ async function searchSpotifyTracks(genres, bpm) {
       genreSeeds.pop();
     }
 
-    // ==== FALLBACK: Use text search if all genre seeds failed ====
+    // Fallback
     const fallbackQuery = genres.join(' ');
     console.log(`Falling back to search for: "${fallbackQuery}"`);
 
