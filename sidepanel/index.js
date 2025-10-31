@@ -140,74 +140,93 @@ async function getSpotifyToken() {
   }
 }
 
-// Search for tracks on Spotify
+// Search for tracks on Spotify using genre seeds + tempo
+// Search for tracks on Spotify using genre seeds + tempo (no /audio-features)
 async function searchSpotifyTracks(genres, bpm) {
   try {
     const token = await getSpotifyToken();
-    
-    // Build search query based on genres
-    const searchTerms = genres.join(' ');
-    const query = new URLSearchParams({
-      q: searchTerms,
+
+    // Clone genres array so we can safely modify it
+    let genreSeeds = [...genres];
+    let attempt = 0;
+
+    while (genreSeeds.length > 0) {
+      attempt++;
+      console.log(`Attempt ${attempt}: Using genre seeds:`, genreSeeds.join(', '));
+
+      const query = new URLSearchParams({
+        seed_genres: genreSeeds.slice(0, 5).join(','), // Spotify allows max 5 seeds
+        target_tempo: bpm,
+        limit: '10'
+      });
+
+      const res = await fetch(`https://api.spotify.com/v1/recommendations?${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.warn(`Spotify recommendations error (attempt ${attempt}):`, res.status, text);
+      } else {
+        const data = await res.json();
+        const tracks = data.tracks || [];
+
+        if (tracks.length > 0) {
+          // Pick a random track from the recommendations
+          const bestMatch = tracks[Math.floor(Math.random() * tracks.length)];
+          console.log(`Found recommended track: "${bestMatch.name}" by ${bestMatch.artists[0].name}`);
+          return bestMatch;
+        }
+
+        console.warn(`No recommendations found for seeds: ${genreSeeds.join(', ')}`);
+      }
+
+      // Remove last genre and retry
+      genreSeeds.pop();
+    }
+
+    // ==== FALLBACK: Use text search if all genre seeds failed ====
+    const fallbackQuery = genres.join(' ');
+    console.log(`Falling back to search for: "${fallbackQuery}"`);
+
+    const searchParams = new URLSearchParams({
+      q: fallbackQuery,
       type: 'track',
       limit: '10'
     });
 
-    console.log('Searching Spotify for:', searchTerms);
-
-    const res = await fetch(`https://api.spotify.com/v1/search?${query}`, {
+    const searchRes = await fetch(`https://api.spotify.com/v1/search?${searchParams}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('Spotify Search error:', res.status, text);
+    if (!searchRes.ok) {
+      const text = await searchRes.text();
+      console.error('Spotify fallback search error:', searchRes.status, text);
       return null;
     }
 
-    const data = await res.json();
-    const tracks = data.tracks?.items || [];
-    
-    if (tracks.length === 0) {
-      console.warn('No tracks found for:', searchTerms);
+    const searchData = await searchRes.json();
+    const searchTracks = searchData.tracks?.items || [];
+
+    if (searchTracks.length === 0) {
+      console.warn('No tracks found from fallback search.');
       return null;
     }
 
-    console.log(`Found ${tracks.length} tracks`);
+    console.log(`Fallback found ${searchTracks.length} tracks for "${fallbackQuery}"`);
 
-    // Get audio features to find tracks close to target BPM
-    const trackIds = tracks.map(t => t.id).slice(0, 10).join(',');
-    const featuresRes = await fetch(`https://api.spotify.com/v1/audio-features?ids=${trackIds}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    if (!featuresRes.ok) {
-      //console.warn('Could not fetch audio features, returning random track');
-      const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
-      return randomTrack;
-    }
-
-    const featuresData = await featuresRes.json();
-    const tracksWithFeatures = tracks.map((track, i) => ({
-      ...track,
-      tempo: featuresData.audio_features[i]?.tempo || 0,
-    }));
-
-    // Find track closest to target BPM
-    const bestMatch = tracksWithFeatures.reduce((best, current) => {
-      const bestDiff = Math.abs(best.tempo - bpm);
-      const currentDiff = Math.abs(current.tempo - bpm);
-      return currentDiff < bestDiff ? current : best;
-    });
-
-    console.log(`Best match: "${bestMatch.name}" by ${bestMatch.artists[0].name} (BPM: ${Math.round(bestMatch.tempo)})`);
-    return bestMatch;
+    // Just return a random track from the fallback search
+    const randomTrack = searchTracks[Math.floor(Math.random() * searchTracks.length)];
+    console.log(`Fallback track: "${randomTrack.name}" by ${randomTrack.artists[0].name}`);
+    return randomTrack;
 
   } catch (e) {
     console.error('Error searching Spotify:', e);
     return null;
   }
 }
+
+
 
 // Chunk text for full text processing
 function chunkText(text, chunkSize) {
@@ -222,6 +241,8 @@ function chunkText(text, chunkSize) {
 async function generateSummary(text, fullTextMode) {
   let summarizer;
   try {
+    let isDownloading = false;
+    let lastProgress = -1;
     const options = {
       sharedContext: 'This is a website.',
       type: 'key-points',
@@ -231,7 +252,14 @@ async function generateSummary(text, fullTextMode) {
       length: 'short',
       monitor(m) {
         m.addEventListener('downloadprogress', (e) => {
-          console.log(`Downloaded ${e.loaded * 100}%`);
+          const percent = Math.round(e.loaded * 100);
+          console.log(`Summarizer Downloaded ${percent}%`);
+          // Only show download message if progress is actually changing (not instant 0->100)
+          if (percent > 0 && percent < 100 && percent !== lastProgress) {
+            isDownloading = true;
+            showSummary(`📥 Downloading Webpage Summarization AI model... ${percent}%\n\n*This only happens on first use or after updates. Please wait.*`);
+          }
+          lastProgress = percent;
         });
       }
     };
@@ -247,6 +275,13 @@ async function generateSummary(text, fullTextMode) {
 
     if (summarizer) {
       await summarizer.ready;
+      
+      // Show appropriate message based on whether we downloaded
+      if (isDownloading) {
+        showSummary('Download complete! Summarizing content...');
+      } else {
+        showSummary('Summarizing content...');
+      }
       
       if (fullTextMode && text.length > MAX_MODEL_CHARS) {
         // Process in chunks and combine
@@ -294,6 +329,8 @@ async function generateSummary(text, fullTextMode) {
 async function analyzeMusicGenre(summaryText) {
   let summarizer;
   try {
+    let isDownloading = false;
+    let lastProgress = -1;
     const options = {
       sharedContext: 'You are a music analyst. Analyze text and suggest matching music characteristics.',
       type: 'key-points',
@@ -303,7 +340,14 @@ async function analyzeMusicGenre(summaryText) {
       length: 'short',
       monitor(m) {
         m.addEventListener('downloadprogress', (e) => {
-          console.log(`Downloaded ${e.loaded * 100}%`);
+          const percent = Math.round(e.loaded * 100);
+          console.log(`Music Analyzer Downloaded ${percent}%`);
+          // Only show download message if progress is actually changing (not instant 0->100)
+          if (percent > 0 && percent < 100 && percent !== lastProgress) {
+            isDownloading = true;
+            showSummary(`📥 Downloading Music Analysis AI model... ${percent}%\n\n*This only happens on first use or after updates. Please wait.*`);
+          }
+          lastProgress = percent;
         });
       }
     };
@@ -325,6 +369,13 @@ async function analyzeMusicGenre(summaryText) {
 
     if (summarizer) {
       await summarizer.ready;
+      
+      // Show appropriate message based on whether we downloaded
+      if (isDownloading) {
+        showSummary('Download complete! Analyzing musical characteristics...');
+      } else {
+        showSummary('*Analyzing musical characteristics...*');
+      }
 
       const prompt = `Analyze this text and suggest matching music characteristics. Output ONLY in this exact format:
 
