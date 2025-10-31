@@ -40,6 +40,15 @@ For each item this contains a link back to the webpage that was scanned to gener
 
 The current **Suggested Track**'s song title and artist name is also a hyperlink that takes you to the [Spotify Web Player](https://open.spotify.com/track/6mN97GET1fu6h4NtH5jDuY)'s URL for the track incase you want to quickly share it with friends instead of open in through your Spotify client.
 
+### Examples - Chunk Text Summarization
+![Small Chunk Text Summarization](https://github.com/user-attachments/assets/d34f5241-37b7-49c2-9e34-b7859754762a)
+![Small Chunk Text Summary 2](https://github.com/user-attachments/assets/881e0384-873b-46b6-918a-a445e7dd74ef)
+
+
+### Example - Full Text Summarization
+![Full Text Summarization](https://github.com/user-attachments/assets/a988c6cb-228f-40d7-8d61-4a97671c30f3)
+
+
 <br>
 
 ### Settings
