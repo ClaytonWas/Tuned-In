@@ -14,17 +14,15 @@
     "tabs",
     "scripting",
     "storage",
-    "identity",
     "sidePanel"
   ],
   "host_permissions": [
     "http://*/*",
     "https://*/*",
-    "https://api.spotify.com/*",
-    "https://accounts.spotify.com/*"
+    "https://api.spotify.com/*"
   ],
   "side_panel": { 
-    "default_path": "sidepanel/index.html" 
+    "default_path": "sidepanel/index.html"
   },
   "action": {
     "default_icon": {
