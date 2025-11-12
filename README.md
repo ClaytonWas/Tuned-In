@@ -1,3 +1,7 @@
+Check it out in the [Chrome Web Store](https://chromewebstore.google.com/detail/tuned-in/jfpnhopfpcgkpfjeifjnoimjehhclcem)
+
+---
+
 # Tuned In
 
 Tuned in is a music recommendation software for chrome browsers that uses a local AI model ([Gemini](https://blog.google/technology/ai/google-gemini-ai/)) and Spotify to read the content on your webpage and find songs that match the emotionality and energy of the page.
