@@ -887,15 +887,17 @@ summarizeButton.addEventListener('click', async () => {
       trackNameSpan.className = 'track-name-scroll';
       trackName.appendChild(trackNameSpan);
       
-      // Calculate animation distance for scrolling
-      const nameOverflows = trackNameSpan.scrollWidth > trackName.offsetWidth;
-      if (nameOverflows) {
-        const overflow = trackNameSpan.scrollWidth - trackName.offsetWidth;
-        trackNameSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
-      } else {
-        // Even if it doesn't overflow, allow scrolling on hover
-        trackNameSpan.style.setProperty('--scroll-distance', '0px');
-      }
+      // Calculate scroll distance - always enable scrolling
+      setTimeout(() => {
+        const nameOverflows = trackNameSpan.scrollWidth > trackName.offsetWidth;
+        if (nameOverflows) {
+          const overflow = trackNameSpan.scrollWidth - trackName.offsetWidth;
+          trackNameSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
+        } else {
+          // Set a minimal scroll distance so animation always runs
+          trackNameSpan.style.setProperty('--scroll-distance', '-10px');
+        }
+      }, 100);
       
       // Set artist with scrolling
       const artistText = track.artists.map(a => a.name).join(', ');
@@ -905,15 +907,17 @@ summarizeButton.addEventListener('click', async () => {
       artistSpan.className = 'track-artist-scroll';
       trackArtist.appendChild(artistSpan);
       
-      // Calculate animation distance for scrolling
-      const artistOverflows = artistSpan.scrollWidth > trackArtist.offsetWidth;
-      if (artistOverflows) {
-        const overflow = artistSpan.scrollWidth - trackArtist.offsetWidth;
-        artistSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
-      } else {
-        // Even if it doesn't overflow, allow scrolling on hover
-        artistSpan.style.setProperty('--scroll-distance', '0px');
-      }
+      // Calculate scroll distance - always enable scrolling
+      setTimeout(() => {
+        const artistOverflows = artistSpan.scrollWidth > trackArtist.offsetWidth;
+        if (artistOverflows) {
+          const overflow = artistSpan.scrollWidth - trackArtist.offsetWidth;
+          artistSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
+        } else {
+          // Set a minimal scroll distance so animation always runs
+          artistSpan.style.setProperty('--scroll-distance', '-10px');
+        }
+      }, 100);
       
       spotifyLink.href = track.external_urls.spotify;
 

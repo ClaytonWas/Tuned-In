@@ -442,17 +442,28 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
   white-space: nowrap;
   position: relative;
+  text-overflow: ellipsis;
 }
 
 .track-name-scroll {
   display: inline-block;
   white-space: nowrap;
-  animation: scroll-text-name 15s linear infinite;
+  animation: scroll-text-name 8s linear infinite;
   animation-play-state: paused;
+  animation-fill-mode: forwards;
+  transition: transform 0.3s ease-out;
 }
 
-.track-name:hover .track-name-scroll {
+.track-name:hover .track-name-scroll,
+.track-link:hover .track-name-scroll {
   animation-play-state: running;
+  transition: none;
+}
+
+.track-name:not(:hover) .track-name-scroll,
+.track-link:not(:hover) .track-name-scroll {
+  animation-play-state: paused;
+  transform: translateX(0) !important;
 }
 
 .track-artist {
@@ -463,17 +474,28 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
   white-space: nowrap;
   position: relative;
+  text-overflow: ellipsis;
 }
 
 .track-artist-scroll {
   display: inline-block;
   white-space: nowrap;
-  animation: scroll-text-artist 12s linear infinite;
+  animation: scroll-text-artist 6s linear infinite;
   animation-play-state: paused;
+  animation-fill-mode: forwards;
+  transition: transform 0.3s ease-out;
 }
 
-.track-artist:hover .track-artist-scroll {
+.track-artist:hover .track-artist-scroll,
+.track-link:hover .track-artist-scroll {
   animation-play-state: running;
+  transition: none;
+}
+
+.track-artist:not(:hover) .track-artist-scroll,
+.track-link:not(:hover) .track-artist-scroll {
+  animation-play-state: paused;
+  transform: translateX(0) !important;
 }
 
 @keyframes scroll-text-name {
@@ -481,10 +503,10 @@ input[type="range"]::-moz-range-thumb {
     transform: translateX(0);
   }
   50% {
-    transform: translateX(var(--scroll-distance, 0));
+    transform: translateX(calc(var(--scroll-distance, 0px)));
   }
   50.01% {
-    transform: translateX(var(--scroll-distance, 0));
+    transform: translateX(calc(var(--scroll-distance, 0px)));
   }
   100% {
     transform: translateX(0);
@@ -496,10 +518,10 @@ input[type="range"]::-moz-range-thumb {
     transform: translateX(0);
   }
   50% {
-    transform: translateX(var(--scroll-distance, 0));
+    transform: translateX(calc(var(--scroll-distance, 0px)));
   }
   50.01% {
-    transform: translateX(var(--scroll-distance, 0));
+    transform: translateX(calc(var(--scroll-distance, 0px)));
   }
   100% {
     transform: translateX(0);
