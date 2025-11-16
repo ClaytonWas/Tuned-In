@@ -4,127 +4,204 @@ Check it out in the [Chrome Web Store](https://chromewebstore.google.com/detail/
 
 # Tuned In
 
-Tuned in is a music recommendation software for chrome browsers that uses a local AI model ([Gemini](https://blog.google/technology/ai/google-gemini-ai/)) and Spotify to read the content on your webpage and find songs that match the emotionality and energy of the page.
+Tuned In is a music recommendation Chrome extension that uses Chrome's on-device AI model (Gemini Nano) and Spotify to analyze webpage content and recommend songs that match the emotionality and energy of the page.
 
 ## Why I Built It
 
-I think Spotify has a great music recommendation algorithm and appreciated the opportunity to take advantage of that through different content mediums. This local model has provided the chance to develop an application that achieves this goal and has no online overhead or data collection issues.
+I think Spotify has a great music recommendation algorithm and appreciated the opportunity to take advantage of that through different content mediums. This local, on-device model provides the chance to develop an application that achieves this goal with no online overhead or data collection issues—everything runs locally on your device.
 
-### How It Works
+## How It Works
 
-A local AI model handles webpage (and specified page content) summarization to derrive a few songs that aim to represent the emotionality of the content on your webpage. 
+The extension uses Chrome's experimental [Summarization API](https://developer.chrome.com/docs/ai/summarizer-api) (powered by Gemini Nano) to analyze webpage content locally on your device. The AI model extracts musical characteristics (genres and tempo) from the content, which are then used to search Spotify's API for matching tracks.
 
-Specifically, this extension asks the model for a genre and tempo and calls a [Spotify API](https://github.com/ClaytonWas/tuned-in-api) for a generic list of music. 
+**The Process:**
+1. Extract readable content from the current webpage using Mozilla's Readability library
+2. Summarize the content using Chrome's on-device Summarization API
+3. Analyze the summary to extract musical genres and tempo (BPM)
+4. Search Spotify for tracks matching those characteristics
+5. Filter results by popularity threshold (with smart fallback)
+6. Display the recommended track with album art and links
 
 ### Use Cases
 
 - [Fandom.com character bios](https://metalgear.fandom.com/wiki/Solid_Snake)
-- [Obsure codices](https://sacred-texts.com/alc/emerald.htm)
+- [Obscure codices](https://sacred-texts.com/alc/emerald.htm)
 - [Exotic olive oil websites](https://groveandvine.com/our-process/)
+- Wikipedia articles
+- Blog posts and articles
+- Any text-heavy webpage
 
-### Example -  Summarizing a Character Bio
-![Image of Music Summarizer getting a Pokemon related track when analyzing the Bulbapedia page for Bulbasaur](https://github.com/user-attachments/assets/1f6fc569-dacc-4477-ac51-a93fa21bce9e)
-In this example the extension recommends a track called "_Pokémon_" when analyzing the Bulbapedia page for [Bulbasaur](https://bulbapedia.bulbagarden.net/wiki/Bulbasaur_(Pok%C3%A9mon)), this extension has genre validation check which progressivley removes what it has percieved to be music genres in the text until a song is found.
+## Features
 
-### Example - Hyperlinks to Original Content
-<img width="333" height="295" alt="image" src="https://github.com/user-attachments/assets/4eeced42-f222-4d44-abb4-970d6da30406" />
+### 🎵 Smart Music Recommendations
+- Analyzes webpage content to extract musical genres and tempo
+- Searches Spotify for matching tracks
+- Filters by popularity threshold with intelligent fallback (decrements by 10 if no matches found)
+- Displays album art, track info, and direct Spotify links
 
-Here the extension recommends listening to a calm track for studying and coding when analyzing the [Chrome developer page for preparing extensions](https://developer.chrome.com/docs/webstore/prepare) to the Chrome store. 
+### 🎨 Customizable Themes
+Choose from 19 beautiful color themes including:
+- Gray (default)
+- Indigo
+- Jungle
 
-<br>
+All themes feature a sleek, modern design with smooth transitions.
 
-You may have also noticed the,
+### ⚙️ Comprehensive Settings Panel
+Access all settings through a convenient slide-up panel:
 
-"**Source:**" 
+- **Theme Selector**: Choose from 19 color themes
+- **History Limit**: Set how many recent recommendations to save (1-100)
+- **Popularity Threshold**: Filter Spotify tracks by minimum popularity (0-100)
+- **Export History**: Download your recommendation history as JSON
+- **Clear History**: Remove all saved recommendations
 
-field in the music history section. 
-For each item this contains a link back to the webpage that was scanned to generate this music track.
+### 📝 Text Processing Options
 
-<img width="323" height="451" alt="image" src="https://github.com/user-attachments/assets/acc7156a-e796-4f94-a1b5-0d1a778b501f" />
+**Full Text vs. Chunk Mode**
+- **Chunk Mode** (default): Analyzes the first portion of the page for faster results
+- **Full Text Mode**: Processes the entire page in chunks for comprehensive analysis
+- Adjustable chunk size (1,000-10,000 characters) for optimal performance
 
-The current **Suggested Track**'s song title and artist name is also a hyperlink that takes you to the [Spotify Web Player](https://open.spotify.com/track/6mN97GET1fu6h4NtH5jDuY)'s URL for the track incase you want to quickly share it with friends instead of open in through your Spotify client.
+**Smart Warnings**
+The extension shows helpful warnings when:
+- Text is very long and will be truncated in chunk mode
+- Full text mode will require multiple processing chunks
 
-### Examples - Chunk Text Summarization
-![Small Chunk Text Summarization](https://github.com/user-attachments/assets/d34f5241-37b7-49c2-9e34-b7859754762a)
-![Small Chunk Text Summary 2](https://github.com/user-attachments/assets/881e0384-873b-46b6-918a-a445e7dd74ef)
+### 📚 Recommendation History
+- View all past recommendations with embedded Spotify players
+- Each entry includes:
+  - Spotify track embed
+  - Source page link
+  - Track details (name, artist, genres, BPM)
+  - Expandable "More Info" section
+- Links back to original webpages
+- Customizable history limit
 
+### 🎯 Interactive UI Elements
+- **Scrolling Text**: Track names and artist names scroll smoothly on hover (even if they fit)
+- **Direct Spotify Links**: Click track names or artist names to open in Spotify Web Player
+- **Quick Actions**: "Open in Spotify" button for instant access
+- **Live Updates**: History count updates dynamically as recommendations are added
 
-### Example - Full Text Summarization
-![Full Text Summarization](https://github.com/user-attachments/assets/a988c6cb-228f-40d7-8d61-4a97671c30f3)
+## Settings
 
+### Header Controls
+Located at the top of the side panel:
 
-<br>
+- **Full Text Checkbox**: Toggle between chunk mode and full text processing
+- **Chunk Slider**: Adjust the character limit for each processing chunk (1,000-10,000)
 
-### Settings
-Tuned In has 3 togglable settings:
+### Settings Panel
+Access via the ⚙️ Settings button in the footer:
 
-<img width="334" height="36" alt="image" src="https://github.com/user-attachments/assets/2114ca20-a7dd-43a0-baae-f2a73d65f223" />
+- **Theme**: Choose from 19 color themes
+- **History Limit**: Number of recommendations to save (1-100)
+- **Popularity Threshold**: Minimum Spotify popularity score (0-100)
+  - If no tracks meet the threshold, the extension automatically tries lower thresholds in increments of 10
+- **Export History**: Download your recommendation history as a JSON file
+- **Clear History**: Remove all saved recommendations (with confirmation)
 
-If you're ever in doubt, hover over them for a tooltip that explains their purposes.
+All settings are automatically saved and persist across sessions.
 
-#### Themes
-Theme changes are available using the [propscolor](https://propscolor.com/) library.
+## Examples
 
-![colours example](https://github.com/user-attachments/assets/21da1d7a-0789-4766-9364-8c8dcf8ab198)
+### Character Bio Analysis
+The extension can analyze character descriptions and recommend fitting music. For example, analyzing a Bulbasaur page might recommend Pokémon-themed tracks.
 
-The **default** colour is gray.
+### Technical Documentation
+When analyzing technical documentation, the extension might recommend calm, focused music suitable for coding or studying.
 
-<img width="166" height="350" alt="screenshot_1" src="https://github.com/user-attachments/assets/89c8af29-bca1-4fc6-a2e0-37d990a23adf" />
-<img width="173" height="350" alt="screenshot_2" src="https://github.com/user-attachments/assets/be950daf-4601-4ed3-93ae-635071ca024c" />
-<img width="42" height="350" alt="image" src="https://github.com/user-attachments/assets/2897684d-bb71-44b9-bc25-61a5beedd7d5" />
+### Hyperlinks and Navigation
+- **Track Links**: Click any track name or artist name to open in Spotify Web Player
+- **Source Links**: Each history entry includes a link back to the original webpage
+- **Spotify Embeds**: Interactive Spotify players embedded in history items
 
-<br>
+## Technical Details
 
-#### Full Page vs. Text Chunk Summarization
-<img width="66" height="20" alt="image" src="https://github.com/user-attachments/assets/64f032e5-b74c-4cc6-92a7-dbb4bef1150a" />
-<img width="66" height="20" alt="image" src="https://github.com/user-attachments/assets/e2b1496b-a837-48e0-8e35-7497037e6fa8" />
+### On-device AI Processing
+Tuned In uses Chrome's experimental [Summarization API](https://developer.chrome.com/docs/ai/summarizer-api), which runs Gemini Nano locally on your device. This means:
+- ✅ No data sent to external servers
+- ✅ Complete privacy
+- ✅ Works offline (after initial setup)
+- ✅ Fast, local processing
 
-The local model for the Summarizer API is very reasource demanding. To avoid page summaries taking longer than 15 seconds, the extension gives you the opportunity to summarize only the first chunk of the webpages text content. This is often enough to get a strong recommendation, especially on encyclopedic webpages like Wikipedia or Fandom.
+### API Integration
+The extension requires a [Spotify API endpoint](https://github.com/ClaytonWas/tuned-in-api) to search for tracks. You'll need to:
+1. Set up a Spotify Developer account
+2. Deploy the provided API endpoint
+3. Configure the API URL in the extension
 
-**Quick Summary**
+### Smart Popularity Filtering
+When searching for tracks:
+1. First attempts to find tracks matching the set popularity threshold
+2. If no matches, automatically decreases threshold by 10
+3. Continues until tracks are found or threshold reaches 0
+4. Falls back to all tracks (sorted by popularity) if needed
 
-<img width="176" height="127" alt="screenshot_3" src="https://github.com/user-attachments/assets/82882e5b-a647-49f2-8471-d30b6dbf6f96" />
+This ensures you always get a recommendation, even with strict popularity settings.
 
-When **Full Text** checkbox is disabled, a prompt will appear indicating how many characters from the start of the webpage will be submited into a single Summarizer API call.
+## Installation & Setup
 
-`⚠️ Text is very long (49,659 characters). Only the first 4,000 characters will be analyzed. Enable "Full Text" to process the entire page (takes longer).`
+### Prerequisites
+- Chrome browser (latest version)
+- Node.js and npm
+- Spotify Developer account
+- Origin trial token for Summarization API
 
-**Full Webpages Text**
+### Steps
 
-<img width="176" height="127" alt="screenshot_4" src="https://github.com/user-attachments/assets/ea07530f-bf2c-4651-8eb9-a0ab212b0750" />
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ClaytonWas/tuned-in.git
+   cd tuned-in
+   ```
 
-When **Full Text** checkbox is enabled, a prompt will appear indicating how many chunks the text will be split into so that it can be summarized using a local model. 
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-`⚠️ Full text mode enabled. Text will be processed in 13 chunks (49,659 characters total). This will take longer.`
+3. **Build the extension**
+   ```bash
+   npm run build
+   ```
 
-This can be expediated with a hybrid model, but the current version of this extension doesn't implement that.
+4. **Load in Chrome**
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `dist` directory
 
-<br>
+5. **Set up Spotify API**
+   - Deploy the [Spotify API endpoint](https://github.com/ClaytonWas/tuned-in-api)
+   - Configure the API URL in the extension code
 
-#### Size of Text Chunk
-<img width="155" height="23" alt="image" src="https://github.com/user-attachments/assets/7cc92e20-773f-4f39-895a-027e02992d1b" />
-<img width="160" height="23" alt="image" src="https://github.com/user-attachments/assets/e255252b-3edd-46ac-94ff-dbc040c90c2a" />
+6. **Configure Origin Trial Token**
+   - Get your [origin trial token](https://developer.chrome.com/docs/web-platform/origin-trials#extensions) for the Writer API
+   - Update the `trial_tokens` field in `manifest.json`
+   - Remove the `key` field if using your own token
 
-The "**Chunk:**" field controls the character amount of the text that is inputed on each Summarizer API call. Chromes documentation recommends keeping this to `4000` or less, but I found an upper limit of `10,000` to work well as well.
+7. **Start using**
+   - Click the extension icon to open the side panel
+   - Navigate to any webpage
+   - Click "Generate Recommendation" to analyze the page
 
+## Privacy & Security
 
-<br>
-<br>
-<br>
+- **100% Local Processing**: All AI analysis happens on your device
+- **No Data Collection**: No user data is sent to external servers
+- **No Tracking**: The extension doesn't track your browsing
+- **Open Source**: Full source code available for review
 
-## On-device Summarization with Gemini Nano
+## Contributing
 
-[summarizer guide on developer.chrome.com](https://developer.chrome.com/docs/ai/summarizer-api).
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-It uses Mozilla's [readability](https://github.com/mozilla/readability) library to extract the content of the currently active tab and displays a summary of the page generated by [Chrome's experimental summarization API](https://developer.chrome.com/blog/august2024-summarization-ai) in a side panel.
+## License
 
-### Running this extension
+[Add your license here]
 
-1. Clone this repository
-2. Run `npm install` in this folder to install all dependencies.
-3. Run `npm run build` to build the extension.
-4. Load the newly created `dist` directory in Chrome as an [unpacked extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked).
-5. Deploy a [Spotify API](https://github.com/ClaytonWas/tuned-in-api) endpoint with [Spotify for Developers](https://developer.spotify.com/)
-6. Click the extension icon to open the summary side panel.
-7. Open any web page, the page's content summary will automatically be displayed in the side panel.
-8. Update the `"trial_tokens"` field [with your own origin trial token](https://developer.chrome.com/docs/web-platform/origin-trials#extensions) and to remove the `"key"` field in `manifest.json`. The **Summarizer** API is an extension of the **Writer** API, get your trial token from there.
+---
+
+**Note**: The Summarization API is currently experimental and requires an origin trial token. Check [Chrome's documentation](https://developer.chrome.com/docs/ai/summarizer-api) for the latest information on availability and setup.
