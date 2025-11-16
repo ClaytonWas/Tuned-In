@@ -1,14 +1,10 @@
-Check it out in the [Chrome Web Store](https://chromewebstore.google.com/detail/tuned-in/jfpnhopfpcgkpfjeifjnoimjehhclcem)
+# Tuned In is now on the [Chrome Web Store](https://chromewebstore.google.com/detail/tuned-in/jfpnhopfpcgkpfjeifjnoimjehhclcem)
 
----
-
-# Tuned In
-
-Tuned In is a music recommendation Chrome extension that uses Chrome's on-device AI model (Gemini Nano) and Spotify to analyze webpage content and recommend songs that match the emotionality and energy of the page.
+Tuned In is a music recommendation Chrome extension that uses AI and Spotify to analyze webpage content and recommend songs that match the emotionality and energy of the page.
 
 ## Why I Built It
 
-I think Spotify has a great music recommendation algorithm and appreciated the opportunity to take advantage of that through different content mediums. This local, on-device model provides the chance to develop an application that achieves this goal with no online overhead or data collection issues—everything runs locally on your device.
+I think Spotify has a great music recommendation algorithm and appreciated the opportunity to take advantage of that through the text based content medium. This local, on-device model provides the chance to develop an application that achieves this goal with no online overhead or data collection issues.
 
 ## How It Works
 
@@ -26,8 +22,7 @@ The extension uses Chrome's experimental [Summarization API](https://developer.c
 
 - [Fandom.com character bios](https://metalgear.fandom.com/wiki/Solid_Snake)
 - [Obscure codices](https://sacred-texts.com/alc/emerald.htm)
-- [Exotic olive oil websites](https://groveandvine.com/our-process/)
-- Wikipedia articles
+- [Wikipedia articles](https://en.wikipedia.org/wiki/Musicology)
 - Blog posts and articles
 - Any text-heavy webpage
 
@@ -39,29 +34,18 @@ The extension uses Chrome's experimental [Summarization API](https://developer.c
 - Filters by popularity threshold with intelligent fallback (decrements by 10 if no matches found)
 - Displays album art, track info, and direct Spotify links
 
-### 🎨 Customizable Themes
-Choose from 19 beautiful color themes including:
-- Gray (default)
-- Indigo
-- Jungle
-
-All themes feature a sleek, modern design with smooth transitions.
-
-### ⚙️ Comprehensive Settings Panel
-Access all settings through a convenient slide-up panel:
-
-- **Theme Selector**: Choose from 19 color themes
-- **History Limit**: Set how many recent recommendations to save (1-100)
-- **Popularity Threshold**: Filter Spotify tracks by minimum popularity (0-100)
-- **Export History**: Download your recommendation history as JSON
-- **Clear History**: Remove all saved recommendations
-
 ### 📝 Text Processing Options
+<img width="349" height="27" alt="image" src="https://github.com/user-attachments/assets/8b073912-8d5f-4482-87e6-ea2eff7aefaa" />
 
 **Full Text vs. Chunk Mode**
 - **Chunk Mode** (default): Analyzes the first portion of the page for faster results
 - **Full Text Mode**: Processes the entire page in chunks for comprehensive analysis
 - Adjustable chunk size (1,000-10,000 characters) for optimal performance
+
+<img width="337" height="76" alt="image" src="https://github.com/user-attachments/assets/7e72d0bb-4c4b-4bc5-b695-4733240138e5" />
+<br>
+<img width="337" height="61" alt="image" src="https://github.com/user-attachments/assets/e113ed32-fc0a-41de-bec2-a54f167f5259" />
+
 
 **Smart Warnings**
 The extension shows helpful warnings when:
@@ -78,8 +62,11 @@ The extension shows helpful warnings when:
 - Links back to original webpages
 - Customizable history limit
 
+ <img width="350" height="700" alt="image" src="https://github.com/user-attachments/assets/2e070679-eaf3-4994-97cb-8c0570435a2a" />
+
+
 ### 🎯 Interactive UI Elements
-- **Scrolling Text**: Track names and artist names scroll smoothly on hover (even if they fit)
+- **Scrolling Text**: Track names and artist names scroll smoothly on hover
 - **Direct Spotify Links**: Click track names or artist names to open in Spotify Web Player
 - **Quick Actions**: "Open in Spotify" button for instant access
 - **Live Updates**: History count updates dynamically as recommendations are added
@@ -89,10 +76,13 @@ The extension shows helpful warnings when:
 ### Header Controls
 Located at the top of the side panel:
 
-- **Full Text Checkbox**: Toggle between chunk mode and full text processing
+- **Full Text Checkbox**: Toggle between chunk mode and full web page text processing
 - **Chunk Slider**: Adjust the character limit for each processing chunk (1,000-10,000)
 
 ### Settings Panel
+
+<img width="357" height="311" alt="image" src="https://github.com/user-attachments/assets/41495cf7-4338-4e89-ad91-9bd4140f5fe8" />
+
 Access via the ⚙️ Settings button in the footer:
 
 - **Theme**: Choose from 19 color themes
@@ -106,8 +96,32 @@ All settings are automatically saved and persist across sessions.
 
 ## Examples
 
-### Character Bio Analysis
-The extension can analyze character descriptions and recommend fitting music. For example, analyzing a Bulbasaur page might recommend Pokémon-themed tracks.
+### Wikipedia
+<img width="600" height="630" alt="image" src="https://github.com/user-attachments/assets/2a8bc576-969a-422f-b7d6-9387ae8d0126" />
+
+The extension can analyze webpage content and recommend fitting music. For example, analyzing the Wikipedia page for rock music might recommend prominent rock tracks.
+
+### Export Recommendation History
+```json
+[
+  {
+    "trackName": "Scared",
+    "trackArtist": "The Tragically Hip",
+    "artistIds": [
+      "0YMeriqrS3zgsX24nfY0F0"
+    ],
+    "genres": [
+      "rock",
+      "indie",
+      "blues"
+    ],
+    "bpm": 120,
+    "trackId": "7jTns7NXrRxED1h1zObE04",
+    "pageUrl": "https://en.wikipedia.org/wiki/Rock_music",
+    "pageTitle": "Rock music - Wikipedia"
+  }
+]
+```
 
 ### Technical Documentation
 When analyzing technical documentation, the extension might recommend calm, focused music suitable for coding or studying.
@@ -127,7 +141,7 @@ Tuned In uses Chrome's experimental [Summarization API](https://developer.chrome
 - ✅ Fast, local processing
 
 ### API Integration
-The extension requires a [Spotify API endpoint](https://github.com/ClaytonWas/tuned-in-api) to search for tracks. You'll need to:
+The extension requires a [Spotify API endpoint](https://github.com/ClaytonWas/tuned-in-api) to search for tracks. If you want to recreate a similar extension you'll need to:
 1. Set up a Spotify Developer account
 2. Deploy the provided API endpoint
 3. Configure the API URL in the extension
@@ -144,7 +158,7 @@ This ensures you always get a recommendation, even with strict popularity settin
 ## Installation & Setup
 
 ### Prerequisites
-- Chrome browser (latest version)
+- Chrome browser (>= Stable 138)
 - Node.js and npm
 - Spotify Developer account
 - Origin trial token for Summarization API
@@ -197,11 +211,5 @@ This ensures you always get a recommendation, even with strict popularity settin
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-[Add your license here]
-
----
 
 **Note**: The Summarization API is currently experimental and requires an origin trial token. Check [Chrome's documentation](https://developer.chrome.com/docs/ai/summarizer-api) for the latest information on availability and setup.
