@@ -1,87 +1,141 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="index.css" />
   </head>
   <body>
-    <div class="card toolbar">
-      <div class="toolbar-item" title="Change colour theme">
-        <label for="colorTheme">Theme:</label>
-        <select id="colorTheme">
-          <option value="gray">Gray</option>
-          <option value="green">Green</option>
-          <option value="red">Red</option>
-          <option value="blue">Blue</option>
-          <option value="violet">Violet</option>
-          <option value="pink">Pink</option>
-          <option value="purple">Purple</option>
-          <option value="indigo">Indigo</option>
-          <option value="cyan">Cyan</option>
-          <option value="teal">Teal</option>
-          <option value="lime">Lime</option>
-          <option value="yellow">Yellow</option>
-          <option value="orange">Orange</option>
-          <option value="choco">Choco</option>
-          <option value="brown">Brown</option>
-          <option value="stone">Stone</option>
-          <option value="sand">Sand</option>
-          <option value="camo">Camo</option>
-          <option value="jungle">Jungle</option>
-        </select>
-      </div>
+    <div class="container">
+      <!-- Compact Header -->
+      <header class="header">
+        <div class="header-controls">
+          <label class="checkbox-label">
+            <input type="checkbox" id="fullTextMode" />
+            <span>Full Text</span>
+          </label>
+          <div class="range-group">
+            <span class="range-label">Chunk:</span>
+            <input type="range" id="charLimit" min="1000" max="10000" value="7500" step="500" />
+            <span id="charLimitValue" class="range-value">10000</span>
+          </div>
+        </div>
+      </header>
 
-      <div class="toolbar-item" title="Process entire page content in chunks (slower but more comprehensive)">
-        <label for="fullTextMode">Full Text</label>
-        <input type="checkbox" id="fullTextMode" />
-      </div>
+      <!-- Main Content -->
+      <main class="main">
+        <!-- Generate Button -->
+        <button id="summarizeButton" class="btn-primary">
+          Generate Recommendation
+        </button>
 
-      <div class="toolbar-item" title="The amount of characters sent in each summarization chunk">
-        <label for="charLimit">Chunk: <span id="charLimitValue">10000</span></label>
-        <input
-          type="range"
-          id="charLimit"
-          min="1000"
-          max="10000"
-          value="7500"
-          step="500"
-        />
-      </div>
-    </div>
+        <!-- Warning -->
+        <div id="warning" hidden class="alert"></div>
 
-    <div class="card button-container">
-      <button id="summarizeButton">Generate Music Recommendation</button>
-    </div>
+        <!-- Current Recommendation -->
+        <div id="musicInfo" hidden class="card">
+          <div id="trackInfo" hidden class="track-content">
+            <div class="track-header">
+              <img id="albumCover" src="" alt="Album cover" class="album-art" />
+              <div class="track-info">
+                <a id="spotifyLink" href="#" target="_blank" class="track-link">
+                  <h3 id="trackName" class="track-name">—</h3>
+                  <p id="trackArtist" class="track-artist">—</p>
+                </a>
+                <a id="spotifySearchLink" href="#" target="_blank" class="spotify-link">
+                  <span>▶</span>
+                  <span>Open in Spotify</span>
+                </a>
+              </div>
+            </div>
+            
+            <div class="analysis">
+              <div class="analysis-item">
+                <span class="analysis-label">Genres</span>
+                <span id="musicGenres" class="analysis-value">-</span>
+              </div>
+              <div class="analysis-item">
+                <span class="analysis-label">Tempo</span>
+                <span id="musicBpm" class="analysis-value">- <span class="unit">BPM</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-    <div class="card" style="flex-direction: row;" id="musicInfo" hidden>
-      <p style="font-size: small;">Suggested Track</p>
-      
-      <div style="flex-direction: column; font-size: medium;" id="trackInfo" hidden>
-        <p id="spotifySearchLink">Listen on Spotify</p>
+        <!-- Summary -->
+        <div id="summary" class="summary"></div>
 
-        <p>
-          <a id="spotifyLink" href="#" target="_blank">
-            <strong><span id="trackName" style="font-size: large;">—</span></strong><br>
-            <span id="trackArtist" style="font-size: medium;">—</span>
-          </a>
-        </p>
+        <!-- History -->
+        <div class="history-section">
+          <div class="section-header">
+            <h2 class="section-title">History</h2>
+            <span id="historyCount" class="badge">0</span>
+          </div>
+          <ul id="historyList" class="history-list"></ul>
+        </div>
+      </main>
 
-        <img id="albumCover" src="" alt="Album cover"
-            style="max-height: 100%; border-radius: 0.25rem;" />
+      <!-- Footer with Settings Button -->
+      <footer class="footer">
+        <button id="settingsButton" class="settings-button">⚙️ Settings</button>
+      </footer>
 
-        <div>
-          <p style="font-size: small;">Track recommended on following analysis:</p>
-          <p style="font-size: small;">Webpage Genres: <span id="musicGenres">-</span></p>
-          <p style="font-size: small;">Content Tempo: <span id="musicBpm">-</span></p>
+      <!-- Settings Panel -->
+      <div id="settingsPanel" class="settings-panel" hidden>
+        <div class="settings-header">
+          <h1 class="title">⚙️ Settings</h1>
+          <button id="closeSettings" class="close-button">×</button>
+        </div>
+        <div class="settings-content">
+          <!-- Theme -->
+          <div class="setting-item">
+            <label class="setting-label">Theme</label>
+            <select id="colorTheme" class="setting-control">
+              <option value="gray">Gray</option>
+              <option value="green">Green</option>
+              <option value="red">Red</option>
+              <option value="blue">Blue</option>
+              <option value="violet">Violet</option>
+              <option value="pink">Pink</option>
+              <option value="purple">Purple</option>
+              <option value="indigo">Indigo</option>
+              <option value="cyan">Cyan</option>
+              <option value="teal">Teal</option>
+              <option value="lime">Lime</option>
+              <option value="yellow">Yellow</option>
+              <option value="orange">Orange</option>
+              <option value="choco">Choco</option>
+              <option value="brown">Brown</option>
+              <option value="stone">Stone</option>
+              <option value="sand">Sand</option>
+              <option value="camo">Camo</option>
+              <option value="jungle">Jungle</option>
+            </select>
+          </div>
+
+          <!-- History Limit -->
+          <div class="setting-item">
+            <label class="setting-label">History Limit</label>
+            <input type="number" id="historyLimit" class="setting-control" min="1" max="100" value="20" />
+          </div>
+
+          <!-- Popularity threshold -->
+          <div class="setting-item">
+            <label class="setting-label">Popularity Threshold (0-100)</label>
+            <input type="number" id="popularityThreshold" class="setting-control" min="0" max="100" value="60" />
+          </div>
+
+          <!-- Export/Clear History -->
+          <div class="setting-item">
+            <label class="setting-label">History</label>
+            <div class="setting-buttons">
+              <button id="exportHistory" class="setting-btn">Export</button>
+              <button id="clearHistory" class="setting-btn setting-btn-danger">Clear</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-
-    <div class="card" id="summary">Nothing to show...</div>
-
-    <div class="warning card" hidden id="warning"></div>
-
-    <p style="font-size: small;">History</p>
-    <ul id="historyList"></ul>
 
     <script src="index.js" type="module"></script>
   </body>

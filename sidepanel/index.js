@@ -15,6 +15,8 @@ let MAX_MODEL_CHARS = 10000;
 let pageContent = '';
 let isAnalyzing = false;
 let summaryHistory = JSON.parse(localStorage.getItem('summaryHistory') || '[]');
+let maxHistoryLimit = parseInt(localStorage.getItem('historyLimit') || '20', 10);
+let popularityThreshold = parseInt(localStorage.getItem('popularityThreshold') || '25', 10);
 
 const summaryElement = document.querySelector('#summary');
 const warningElement = document.querySelector('#warning');
@@ -59,11 +61,15 @@ function showSkeletonHistory() {
 // Render full history progressively for smoother UI
 async function renderHistory() {
   const historyList = document.querySelector('#historyList');
+  const historyCount = document.querySelector('#historyCount');
 
   if (summaryHistory.length === 0) {
-    historyList.innerHTML = '<li style="text-align: center; padding: 1rem;">No history yet</li>';
+    historyList.innerHTML = '<li class="empty-state">No recommendations yet. Generate your first one above!</li>';
+    if (historyCount) historyCount.textContent = '0';
     return;
   }
+
+  if (historyCount) historyCount.textContent = summaryHistory.length.toString();
 
   historyList.innerHTML = '';
 
@@ -75,48 +81,50 @@ async function renderHistory() {
     const spotifyEmbedUrl = `https://open.spotify.com/embed/track/${item.trackId}`;
 
     li.innerHTML = `
-      <div>
-        <iframe 
-          src="${spotifyEmbedUrl}" 
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-          loading="lazy"
-          frameBorder="0"
-          style="border-radius:12px; width: 100%; height: 80px; border: none;">
-        </iframe>
-      </div>
+      <iframe 
+        src="${spotifyEmbedUrl}" 
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+        loading="lazy"
+        frameBorder="0">
+      </iframe>
 
-      <div style="margin-bottom: 0.5rem;">
-        <p>Source:</p>
+      <div class="source-link">
+        <span style="font-size: 0.75rem; color: rgba(231, 231, 231, 0.6);">Source:</span>
         <strong><a href="${item.pageUrl}" target="_blank">${item.pageTitle}</a></strong>
       </div>
 
-      <details style="margin-top: 0.5rem;">
-        <summary style="cursor: pointer;">More Info</summary>
+      <details>
+        <summary>More Info</summary>
+        <div class="details-content">
+          <div class="details-row">
+            <span class="details-label">Track:</span>
+            <span>
+              <a href="https://open.spotify.com/track/${item.trackId}" target="_blank">
+                ${item.trackName}
+              </a>
+            </span>
+          </div>
 
-        <div style="display: flex; justify-content: space-between;">Track:
-          <span>
-            <a href="https://open.spotify.com/track/${item.trackId}" target="_blank">
-              ${item.trackName}
-            </a>
-          </span>
-        </div>
+          <div class="details-row">
+            <span class="details-label">Artist:</span>
+            <span>
+              ${item.artistIds
+                .map((id, index) =>
+                  `<a href="https://open.spotify.com/artist/${id}" target="_blank">${item.trackArtist.split(', ')[index]}</a>`
+                ).join(', ')
+              }
+            </span>
+          </div>
 
-        <div style="display: flex; justify-content: space-between;">Artist:
-          <span>
-            ${item.artistIds
-              .map((id, index) =>
-                `<a href="https://open.spotify.com/artist/${id}" target="_blank">${item.trackArtist.split(', ')[index]}</a>`
-              ).join(', ')
-            }
-          </span>
-        </div>
+          <div class="details-row">
+            <span class="details-label">Genres:</span>
+            <span>${item.genres.join(', ')}</span>
+          </div>
 
-        <div style="display: flex; justify-content: space-between;">Suggested Genres:
-          <span>${item.genres.join(', ')}</span>
-        </div>
-
-        <div style="display: flex; justify-content: space-between;">Suggested BPM:
-          <span>${item.bpm}</span>
+          <div class="details-row">
+            <span class="details-label">BPM:</span>
+            <span>${item.bpm}</span>
+          </div>
         </div>
       </details>
     `;
@@ -252,14 +260,35 @@ async function searchSpotifyTracks(genres, bpm) {
 
     console.log(`Found ${tracks.length} tracks`);
 
-    const popularTracks = tracks
-      .filter(t => t.popularity > 25)
+    // Filter tracks by popularity threshold, decreasing by 10 if no matches
+    let currentThreshold = popularityThreshold;
+    let filteredTracks = tracks.filter(t => t.popularity >= currentThreshold);
+    
+    // If no tracks meet threshold, try decreasing by increments of 10
+    while (filteredTracks.length === 0 && currentThreshold > 0) {
+      currentThreshold = Math.max(0, currentThreshold - 10);
+      filteredTracks = tracks.filter(t => t.popularity >= currentThreshold);
+      console.log(`No tracks found with popularity >= ${currentThreshold + 10}, trying ${currentThreshold}`);
+    }
+    
+    // If still no tracks, use all tracks but sorted by popularity
+    if (filteredTracks.length === 0) {
+      console.log(`No tracks found with any popularity threshold, using all tracks`);
+      filteredTracks = tracks;
+    }
+    
+    const popularTracks = filteredTracks
       .sort((a, b) => b.popularity - a.popularity);
 
     const randomIndex = Math.floor(Math.random() * Math.min(20, popularTracks.length));
-    const selectedTrack = popularTracks[randomIndex] || tracks[0];
+    const selectedTrack = popularTracks[randomIndex];
 
-    console.log(`Selected track: "${selectedTrack.name}" by ${selectedTrack.artists[0].name} (popularity: ${selectedTrack.popularity})`);
+    if (!selectedTrack) {
+      console.warn('No track selected');
+      return null;
+    }
+
+    console.log(`Selected track: "${selectedTrack.name}" by ${selectedTrack.artists[0].name} (popularity: ${selectedTrack.popularity}, threshold used: ${currentThreshold})`);
     return selectedTrack;
 
   } catch (e) {
@@ -405,8 +434,14 @@ async function generateSummary(text, fullTextMode) {
       return 'Error: Summarizer API is not available';
     }
 
-    if (navigator.userActivation.isActive) {
+    // Try to create summarizer - user activation may not be available for auto-generate
+    try {
       summarizer = await Summarizer.create(options);
+    } catch (e) {
+      if (e.message && e.message.includes('user activation')) {
+        return 'Error: User interaction required. Please click the button to generate recommendations.';
+      }
+      throw e;
     }
 
     if (summarizer) {
@@ -492,10 +527,22 @@ async function analyzeMusicGenre(summaryText) {
       };
     }
 
-    if (navigator.userActivation.isActive) {
+    // Try to create summarizer - user activation may not be available
+    try {
       summarizer = await Summarizer.create(options);
-    } else {
-      summarizer = await Summarizer.create(options);
+    } catch (e) {
+      if (e.message && e.message.includes('user activation')) {
+        console.warn('User activation required for analysis');
+        return {
+          bpm: 100,
+          genres: ['ambient', 'electronic']
+        };
+      }
+      console.error('Failed to create summarizer for analysis:', e);
+      return {
+        bpm: 100,
+        genres: ['ambient', 'electronic']
+      };
     }
 
     if (summarizer) {
@@ -579,85 +626,89 @@ Text to analyze:
   }
 }
 
-// Apply selected color theme across UI elements
-const colorThemeSelect = document.querySelector('#colorTheme');
-const savedTheme = localStorage.getItem('colorTheme') || 'gray';
-colorThemeSelect.value = savedTheme;
-applyColorTheme(savedTheme);
+// Settings panel toggle
+const settingsButton = document.querySelector('#settingsButton');
+const settingsPanel = document.querySelector('#settingsPanel');
+const closeSettings = document.querySelector('#closeSettings');
 
-colorThemeSelect.addEventListener('change', (e) => {
-  const theme = e.target.value;
-  localStorage.setItem('colorTheme', theme);
-  applyColorTheme(theme);
-});
-
-// Apply theme styles to multiple UI components
-function applyColorTheme(theme) {
-  const toolbar = document.querySelector('.toolbar');
-  const summary = document.querySelector('#summary');
-  const warning = document.querySelector('#warning');
-  const historyItems = document.querySelectorAll('.history-item');
-  const musicInfo = document.querySelector('#musicInfo');
-  const summarizeButton = document.querySelector('#summarizeButton');
-
-  document.body.style.backgroundColor = `var(--${theme}-11)`
-
-  if (toolbar) {
-    toolbar.style.color = `var(--${theme}-3)`;
-  }
-
-  if (summarizeButton) {
-    updateElementTheme(summarizeButton, theme);
-  }
-
-  if (musicInfo) {
-    updateElementTheme(musicInfo, theme);
-  }
-
-  if (summary) {
-    summary.style.backgroundColor = `var(--${theme}-10)`;
-    summary.style.borderColor = `var(--${theme}-12)`;
-    summary.style.color = 'rgb(231, 231, 231)';
-  }
-
-  if (warning) {
-    warning.style.backgroundColor = `var(--${theme}-10)`;
-    warning.style.borderColor = `var(--${theme}-12)`;
-    warning.style.color = 'rgb(231, 231, 231)';
-  }
-
-  historyItems.forEach(item => {
-    updateElementTheme(item, theme);
+if (settingsButton && settingsPanel) {
+  settingsButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    settingsPanel.removeAttribute('hidden');
   });
 }
 
-// Apply theme to a single element (history card, button, etc.)
-function updateElementTheme(element, theme) {
-  const isHistoryItem = element.classList.contains('history-item');
-
-  element.style.borderColor = `var(--${theme}-12)`;
-
-  if (isHistoryItem) {
-    element.style.backgroundColor = `var(--${theme}-10)`;
-    element.style.borderColor = `var(--${theme}-12)`;
-  } else {
-    element.style.backgroundColor = `var(--${theme}-8)`;
-    element.style.borderColor = `var(--${theme}-10)`;
-  }
-
-  const details = element.querySelector('details');
-  const summary = element.querySelector('summary');
-  if (details) details.style.backgroundColor = `var(--${theme}-10)`;
-  if (summary) summary.style.backgroundColor = `var(--${theme}-10)`;
-
-  const links = element.querySelectorAll('a');
-  links.forEach(link => {
-    if (isHistoryItem) {
-      link.style.color = `var(--${theme}-5)`;
-    } else {
-      link.style.color = `var(--${theme}-1)`;
-    }
+if (closeSettings && settingsPanel) {
+  closeSettings.addEventListener('click', (e) => {
+    e.stopPropagation();
+    settingsPanel.setAttribute('hidden', '');
   });
+}
+
+// Close settings when clicking outside
+document.addEventListener('click', (e) => {
+  if (settingsPanel && !settingsPanel.hasAttribute('hidden') && 
+      !settingsPanel.contains(e.target) && 
+      !settingsButton?.contains(e.target)) {
+    settingsPanel.setAttribute('hidden', '');
+  }
+});
+
+// Apply selected color theme across UI elements
+const colorThemeSelect = document.querySelector('#colorTheme');
+const savedTheme = localStorage.getItem('colorTheme') || 'gray';
+if (colorThemeSelect) {
+  colorThemeSelect.value = savedTheme;
+  applyColorTheme(savedTheme);
+
+  colorThemeSelect.addEventListener('change', (e) => {
+    const theme = e.target.value;
+    localStorage.setItem('colorTheme', theme);
+    applyColorTheme(theme);
+  });
+}
+
+// Apply theme styles using CSS variables
+function applyColorTheme(theme) {
+  const root = document.documentElement;
+  
+  // Map theme colors to HSL values
+  const themeColors = {
+    gray: { bg: '0 0% 3.9%', fg: '0 0% 98%', muted: '0 0% 14.9%', border: '0 0% 14.9%', card: '0 0% 3.9%', link: '0 0% 100%' },
+    green: { bg: '142 76% 4%', fg: '142 76% 98%', muted: '142 20% 15%', border: '142 20% 15%', card: '142 76% 4%', link: '142 76% 100%' },
+    red: { bg: '0 72% 4%', fg: '0 72% 98%', muted: '0 20% 15%', border: '0 20% 15%', card: '0 72% 4%', link: '0 72% 100%' },
+    blue: { bg: '217 91% 4%', fg: '217 91% 98%', muted: '217 20% 15%', border: '217 20% 15%', card: '217 91% 4%', link: '217 91% 100%' },
+    violet: { bg: '262 83% 4%', fg: '262 83% 98%', muted: '262 20% 15%', border: '262 20% 15%', card: '262 83% 4%', link: '262 83% 100%' },
+    pink: { bg: '330 81% 4%', fg: '330 81% 98%', muted: '330 20% 15%', border: '330 20% 15%', card: '330 81% 4%', link: '330 81% 100%' },
+    purple: { bg: '280 100% 4%', fg: '280 100% 98%', muted: '280 20% 15%', border: '280 20% 15%', card: '280 100% 4%', link: '280 100% 100%' },
+    indigo: { bg: '239 84% 4%', fg: '239 84% 98%', muted: '239 20% 15%', border: '239 20% 15%', card: '239 84% 4%', link: '239 84% 100%' },
+    cyan: { bg: '188 94% 4%', fg: '188 94% 98%', muted: '188 20% 15%', border: '188 20% 15%', card: '188 94% 4%', link: '188 94% 100%' },
+    teal: { bg: '173 80% 4%', fg: '173 80% 98%', muted: '173 20% 15%', border: '173 20% 15%', card: '173 80% 4%', link: '173 80% 100%' },
+    lime: { bg: '75 85% 4%', fg: '75 85% 98%', muted: '75 20% 15%', border: '75 20% 15%', card: '75 85% 4%', link: '75 85% 100%' },
+    yellow: { bg: '53 96% 4%', fg: '53 96% 98%', muted: '53 20% 15%', border: '53 20% 15%', card: '53 96% 4%', link: '53 96% 100%' },
+    orange: { bg: '25 95% 4%', fg: '25 95% 98%', muted: '25 20% 15%', border: '25 20% 15%', card: '25 95% 4%', link: '25 95% 100%' },
+    choco: { bg: '25 35% 4%', fg: '25 35% 98%', muted: '25 20% 15%', border: '25 20% 15%', card: '25 35% 4%', link: '25 35% 100%' },
+    brown: { bg: '30 25% 4%', fg: '30 25% 98%', muted: '30 20% 15%', border: '30 20% 15%', card: '30 25% 4%', link: '30 25% 100%' },
+    stone: { bg: '24 10% 4%', fg: '24 10% 98%', muted: '24 10% 15%', border: '24 10% 15%', card: '24 10% 4%', link: '24 10% 100%' },
+    sand: { bg: '43 13% 4%', fg: '43 13% 98%', muted: '43 13% 15%', border: '43 13% 15%', card: '43 13% 4%', link: '43 13% 100%' },
+    camo: { bg: '90 30% 4%', fg: '90 30% 98%', muted: '90 20% 15%', border: '90 20% 15%', card: '90 30% 4%', link: '90 30% 100%' },
+    jungle: { bg: '142 50% 4%', fg: '142 50% 98%', muted: '142 20% 15%', border: '142 20% 15%', card: '142 50% 4%', link: '142 50% 100%' }
+  };
+
+  const colors = themeColors[theme] || themeColors.gray;
+  
+  root.style.setProperty('--bg', `hsl(${colors.bg})`);
+  root.style.setProperty('--fg', `hsl(${colors.fg})`);
+  root.style.setProperty('--muted', `hsl(${colors.muted})`);
+  root.style.setProperty('--border', `hsl(${colors.border})`);
+  root.style.setProperty('--card', `hsl(${colors.card})`);
+  root.style.setProperty('--link-color', `hsl(${colors.link})`);
+}
+
+// Apply theme to a single element (for history items that need dynamic updates)
+function updateElementTheme(element, theme) {
+  // Theme is now applied globally via CSS variables, but we can still update specific elements if needed
+  applyColorTheme(theme);
 }
 
 // Set character limit UI and sync with localStorage
@@ -685,6 +736,82 @@ fullTextCheckbox.addEventListener('change', (e) => {
   localStorage.setItem('fullTextMode', e.target.checked);
   onContentChange();
 });
+
+// Initialize all settings
+const historyLimitInput = document.querySelector('#historyLimit');
+const popularityThresholdInput = document.querySelector('#popularityThreshold');
+const exportHistoryBtn = document.querySelector('#exportHistory');
+const clearHistoryBtn = document.querySelector('#clearHistory');
+
+// History Limit
+if (historyLimitInput) {
+  historyLimitInput.value = maxHistoryLimit;
+  historyLimitInput.addEventListener('change', (e) => {
+    let value = parseInt(e.target.value, 10);
+    if (value < 1) {
+      value = 1;
+      historyLimitInput.value = 1;
+    } else if (value > 100) {
+      value = 100;
+      historyLimitInput.value = 100;
+    }
+    maxHistoryLimit = value;
+    localStorage.setItem('historyLimit', value.toString());
+    
+    // Trim history if it exceeds new limit
+    if (summaryHistory.length > maxHistoryLimit) {
+      summaryHistory = summaryHistory.slice(0, maxHistoryLimit);
+      localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
+      renderHistory();
+    }
+  });
+}
+
+// Popularity Threshold
+if (popularityThresholdInput) {
+  popularityThresholdInput.value = popularityThreshold;
+  popularityThresholdInput.addEventListener('input', (e) => {
+    let value = parseInt(e.target.value, 10);
+    if (isNaN(value)) {
+      value = 25;
+      popularityThresholdInput.value = 25;
+    } else if (value < 0) {
+      value = 0;
+      popularityThresholdInput.value = 0;
+    } else if (value > 100) {
+      value = 100;
+      popularityThresholdInput.value = 100;
+    }
+    popularityThreshold = value;
+    localStorage.setItem('popularityThreshold', value.toString());
+    console.log(`Popularity threshold updated to: ${popularityThreshold}`);
+  });
+}
+
+// Export History
+if (exportHistoryBtn) {
+  exportHistoryBtn.addEventListener('click', () => {
+    const dataStr = JSON.stringify(summaryHistory, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tuned-in-history-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+// Clear History
+if (clearHistoryBtn) {
+  clearHistoryBtn.addEventListener('click', () => {
+    if (confirm('Are you sure you want to clear all history? This cannot be undone.')) {
+      summaryHistory = [];
+      localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
+      renderHistory();
+    }
+  });
+}
 
 // Summarize button click → summarize → analyze → recommend
 summarizeButton.addEventListener('click', async () => {
@@ -737,7 +864,10 @@ summarizeButton.addEventListener('click', async () => {
   genresElem.textContent = analysis.genres.join(', ');
   trackInfo.setAttribute('hidden', '');
   albumCover.src = '';
-  spotifySearchLink.textContent = '';
+  if (spotifySearchLink) {
+    spotifySearchLink.textContent = '';
+    spotifySearchLink.href = '#';
+  }
 
   updateElementTheme(musicInfo, colorThemeSelect.value);
   musicInfo.removeAttribute('hidden');
@@ -749,13 +879,52 @@ summarizeButton.addEventListener('click', async () => {
     isAnalyzing = false;
 
     if (track) {
-      trackName.textContent = track.name;
-      trackArtist.textContent = track.artists.map(a => a.name).join(', ');
+      // Set track name with scrolling
+      const trackNameText = track.name;
+      trackName.textContent = '';
+      const trackNameSpan = document.createElement('span');
+      trackNameSpan.textContent = trackNameText;
+      trackNameSpan.className = 'track-name-scroll';
+      trackName.appendChild(trackNameSpan);
+      
+      // Calculate animation distance for scrolling
+      const nameOverflows = trackNameSpan.scrollWidth > trackName.offsetWidth;
+      if (nameOverflows) {
+        const overflow = trackNameSpan.scrollWidth - trackName.offsetWidth;
+        trackNameSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
+      } else {
+        // Even if it doesn't overflow, allow scrolling on hover
+        trackNameSpan.style.setProperty('--scroll-distance', '0px');
+      }
+      
+      // Set artist with scrolling
+      const artistText = track.artists.map(a => a.name).join(', ');
+      trackArtist.textContent = '';
+      const artistSpan = document.createElement('span');
+      artistSpan.textContent = artistText;
+      artistSpan.className = 'track-artist-scroll';
+      trackArtist.appendChild(artistSpan);
+      
+      // Calculate animation distance for scrolling
+      const artistOverflows = artistSpan.scrollWidth > trackArtist.offsetWidth;
+      if (artistOverflows) {
+        const overflow = artistSpan.scrollWidth - trackArtist.offsetWidth;
+        artistSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
+      } else {
+        // Even if it doesn't overflow, allow scrolling on hover
+        artistSpan.style.setProperty('--scroll-distance', '0px');
+      }
+      
       spotifyLink.href = track.external_urls.spotify;
 
       if (track.album?.images?.[0]?.url) {
         albumCover.src = track.album.images[0].url;
         albumCover.removeAttribute('hidden');
+      }
+
+      if (spotifySearchLink) {
+        spotifySearchLink.href = track.external_urls.spotify;
+        spotifySearchLink.innerHTML = '<span class="spotify-icon">▶</span><span>Open in Spotify</span>';
       }
 
       trackInfo.removeAttribute('hidden');
@@ -771,13 +940,20 @@ summarizeButton.addEventListener('click', async () => {
         pageTitle: currentPageTitle
       });
 
-      summaryHistory = summaryHistory.slice(0, 20);
+      // Limit history based on user setting
+      if (summaryHistory.length > maxHistoryLimit) {
+        summaryHistory = summaryHistory.slice(0, maxHistoryLimit);
+        localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
+      }
       localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
       renderHistory();
 
       summaryElement.setAttribute('hidden', '');
     } else {
-      spotifySearchLink.innerHTML = `<a href="https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}" target="_blank">Search manually on Spotify</a>`;
+      if (spotifySearchLink) {
+        spotifySearchLink.href = `https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}`;
+        spotifySearchLink.innerHTML = '<span class="spotify-icon">🔍</span><span>Search on Spotify</span>';
+      }
       summaryElement.removeAttribute('hidden');
       showSummary("Could not find a matching track");
     }
@@ -785,7 +961,11 @@ summarizeButton.addEventListener('click', async () => {
   } catch (e) {
     isAnalyzing = false;
     console.error('Error fetching track:', e);
-    spotifySearchLink.textContent = `Error fetching track: ${e.message}`;
+    const spotifySearchLink = document.querySelector('#spotifySearchLink');
+    if (spotifySearchLink) {
+      spotifySearchLink.textContent = '';
+      spotifySearchLink.href = '#';
+    }
     summaryElement.removeAttribute('hidden');
     showSummary("Error fetching track");
   }
@@ -831,6 +1011,12 @@ function onContentChange() {
 showSkeletonHistory();
 showSummary("Loading...");
 
+// Trim history on load if it exceeds the limit
+if (summaryHistory.length > maxHistoryLimit) {
+  summaryHistory = summaryHistory.slice(0, maxHistoryLimit);
+  localStorage.setItem('summaryHistory', JSON.stringify(summaryHistory));
+}
+
 // Render actual history asynchronously
 setTimeout(() => {
   renderHistory().then(() => {
@@ -844,6 +1030,14 @@ setTimeout(() => {
     if (storedContent) {
       pageContent = storedContent;
       onContentChange();
+      
+      // Note: Auto-generate is disabled because Summarizer API requires user activation
+      // The setting is kept for future use or if API changes
+      // if (autoGenerate && !isAnalyzing && summarizeButton) {
+      //   setTimeout(() => {
+      //     summarizeButton.click();
+      //   }, 500);
+      // }
     } else {
       showSummary("Music Generation Not Currently Possible (There's nothing to summarize)");
     }
@@ -855,5 +1049,12 @@ chrome.storage.session.onChanged.addListener((changes) => {
   if (changes['pageContent']) {
     pageContent = changes['pageContent'].newValue;
     onContentChange();
+    
+    // Note: Auto-generate is disabled because Summarizer API requires user activation
+    // if (autoGenerate && !isAnalyzing && summarizeButton && pageContent) {
+    //   setTimeout(() => {
+    //     summarizeButton.click();
+    //   }, 500);
+    // }
   }
 });
