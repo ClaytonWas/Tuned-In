@@ -430,8 +430,9 @@ async function generateSummary(text, fullTextMode) {
     };
 
     const availability = await Summarizer.availability();
-    if (availability === 'unavailable') {
-      return 'Error: Summarizer API is not available';
+    if (availability !== 'available') {
+      showSummary("This feature requires Chrome's on-device AI model (Gemini Nano). Please upgrade to a new version of Chrome.");
+      return;
     }
 
     // Try to create summarizer - user activation may not be available for auto-generate

@@ -1,11 +1,10 @@
 {
   "name": "Tuned In",
-  "version": "1.0",
+  "version": "2.1",
   "manifest_version": 3,
-  "description": "Get a music recommendation of webpage content using Chrome's built-in summarization API.",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0rGdYnMnAJm24F1aVoygD+UJtTtFkRfju36f2Pp3keQQU6fXHNrddqpfMZXb+E9YJmRz+2jJgeEbMSN4m8zFD/9NrbNmfUrCvvnu6id6o1cMtdRsFNvLDsvDfY895kQ9d8543q5TCmGt1NGFBgzSp8wORBQNOYXlAmtRh2Ru2+pMC+v8i5lirkMQbWKe7y+tr6aq95KrILc+TxZmujqoTd0Tay5sNp3jCafdSexo2dOnCUR369KLRnkrakaZ9Jzak5C2ysHwcgmsJwvenFCbET2AvHjiHLGDDWNCQ+FYwzlMOnJCOjDskWur8XAGozKKYpPXtJ88BYfuPu80QXfZaQIDAQAB",
+  "description": "Get a music recommendation of webpage content using a built-in Google Gemini AI model.",
   "trial_tokens": [
-    "AjP9aVH2fSpSHme6CHvYqhRJjdsO/MBsiV4DTi/X+ffFhHP6wbCWX6B77azKI+M4Ff8TSxSv7QphCystYZWv6QcAAABseyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vY2xpb2JpZWhrbWNoZ2ptbWNpaWdqYW1wbGxlbWRrZWoiLCJmZWF0dXJlIjoiQUlXcml0ZXJBUEkiLCJleHBpcnkiOjE3Njk0NzIwMDB9"
+    "A4cWrFfCh/d4lsjmSkGydRu5/rHRKm5aWIx8V94djP50E0vFB3sYHA9FsmW7XMwUmT/IS+0zUFacRi9OzwVdbwEAAACAeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vamZwbmhvcGZwY2drcGZqZWlmam5vaW1qZWhoY2xjZW0iLCJmZWF0dXJlIjoiQUlXcml0ZXJBUEkiLCJleHBpcnkiOjE3NzY3Mjk2MDAsImlzVGhpcmRQYXJ0eSI6dHJ1ZX0="
   ],
   "background": {
     "service_worker": "background.js"
@@ -19,7 +18,8 @@
   "host_permissions": [
     "http://*/*",
     "https://*/*",
-    "https://api.spotify.com/*"
+    "https://api.spotify.com/*",
+    "https://tuned-in-api.vercel.app/*"
   ],
   "side_panel": { 
     "default_path": "sidepanel/index.html"
