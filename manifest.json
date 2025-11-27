@@ -1,6 +1,6 @@
 {
   "name": "Tuned In",
-  "version": "2.1",
+  "version": "2.4",
   "manifest_version": 3,
   "description": "Get a music recommendation of webpage content using a built-in Google Gemini AI model.",
   "trial_tokens": [

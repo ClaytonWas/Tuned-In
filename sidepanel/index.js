@@ -173,66 +173,467 @@ async function getSpotifyToken() {
   }
 }
 
-// Spotify search query using genres + BPM mood
-function buildSmartSearchQuery(genres, bpm) {
-  const genreKeywords = {
-    'pop': ['pop', 'catchy', 'upbeat'],
-    'rock': ['rock', 'guitar', 'alternative'],
-    'hip-hop': ['hip hop', 'rap', 'beats'],
-    'electronic': ['electronic', 'synth', 'edm'],
-    'indie': ['indie', 'alternative', 'folk'],
-    'jazz': ['jazz', 'smooth', 'instrumental'],
-    'classical': ['classical', 'piano', 'orchestra'],
-    'ambient': ['ambient', 'chill', 'atmospheric'],
-    'metal': ['metal', 'heavy', 'hard rock'],
-    'folk': ['folk', 'acoustic', 'singer-songwriter'],
-    'r-n-b': ['r&b', 'soul', 'smooth'],
-    'country': ['country', 'americana', 'folk'],
-    'reggae': ['reggae', 'ska', 'dub'],
-    'blues': ['blues', 'soul', 'rhythm'],
-    'soul': ['soul', 'motown', 'r&b'],
-    'punk': ['punk', 'rock', 'alternative'],
-    'disco': ['disco', 'funk', 'dance'],
-    'house': ['house', 'electronic', 'dance'],
-    'techno': ['techno', 'electronic', 'edm'],
-    'trance': ['trance', 'electronic', 'progressive'],
-    'dubstep': ['dubstep', 'bass', 'electronic']
+// Map genres to Spotify's valid seed genres for Recommendations API
+// Spotify has specific genre seeds - see: https://developer.spotify.com/documentation/web-api/reference/get-recommendations
+function mapToSpotifyGenres(genres) {
+  const spotifyGenreMap = {
+    'pop': 'pop',
+    'rock': 'rock',
+    'hip-hop': 'hip-hop',
+    'hip hop': 'hip-hop',
+    'rap': 'hip-hop',
+    'electronic': 'electronic',
+    'edm': 'electronic',
+    'indie': 'indie',
+    'indie-pop': 'indie-pop',
+    'jazz': 'jazz',
+    'classical': 'classical',
+    'ambient': 'ambient',
+    'metal': 'metal',
+    'folk': 'folk',
+    'r-n-b': 'r-n-b',
+    'r&b': 'r-n-b',
+    'country': 'country',
+    'reggae': 'reggae',
+    'blues': 'blues',
+    'soul': 'soul',
+    'punk': 'punk',
+    'disco': 'disco',
+    'house': 'house',
+    'techno': 'techno',
+    'trance': 'trance',
+    'dubstep': 'dubstep',
+    'chill': 'chill',
+    // Map mood-based genres to actual music genres
+    'romantic': 'r-n-b', // Romantic mood -> R&B/Soul
+    'sad': 'sad', // "sad" is a valid Spotify genre
+    'happy': 'happy', // "happy" is a valid Spotify genre
+    'party': 'party', // "party" is a valid Spotify genre
+    'aggressive': 'metal', // Map aggressive to metal
+    'lo-fi': 'chill',
+    'synthwave': 'electronic',
+    'trap': 'hip-hop',
+    'grunge': 'rock'
   };
 
-  let moodTerms = [];
-  if (bpm < 80) {
-    moodTerms = ['slow', 'melancholic', 'sad', 'ballad', 'emotional'];
-  } else if (bpm < 100) {
-    moodTerms = ['chill', 'relaxing', 'mellow', 'downtempo', 'laid-back'];
-  } else if (bpm < 120) {
-    moodTerms = ['moderate', 'groovy', 'smooth', 'steady'];
-  } else if (bpm < 140) {
-    moodTerms = ['upbeat', 'energetic', 'driving', 'lively'];
-  } else {
-    moodTerms = ['fast', 'intense', 'aggressive', 'high-energy', 'powerful'];
+  // Map genres to Spotify's valid seed genres
+  const validGenres = [];
+  // Only include genres that are actually valid for Spotify search genre filter
+  // Note: Some genres like "romantic" and "romance" may not work in search filters
+  // but "sad", "happy", "party" are valid mood-based genres
+  const spotifyValidGenres = [
+    'acoustic', 'afrobeat', 'alt-rock', 'alternative', 'ambient', 'anime', 'black-metal',
+    'bluegrass', 'blues', 'bossanova', 'brazil', 'breakbeat', 'british', 'cantopop',
+    'chicago-house', 'children', 'chill', 'classical', 'club', 'comedy', 'country',
+    'dance', 'dancehall', 'death-metal', 'deep-house', 'detroit-techno', 'disco',
+    'disney', 'drum-and-bass', 'dub', 'dubstep', 'edm', 'electro', 'electronic',
+    'emo', 'folk', 'forro', 'french', 'funk', 'garage', 'german', 'gospel', 'goth',
+    'grindcore', 'groove', 'grunge', 'guitar', 'happy', 'hard-rock', 'hardcore',
+    'hardstyle', 'heavy-metal', 'hip-hop', 'holidays', 'honky-tonk', 'house',
+    'idm', 'indian', 'indie', 'indie-pop', 'industrial', 'iranian', 'j-dance',
+    'j-idol', 'j-pop', 'j-rock', 'jazz', 'k-pop', 'kids', 'latin', 'latino',
+    'malay', 'mandopop', 'metal', 'metal-misc', 'metalcore', 'minimal-techno',
+    'movies', 'mpb', 'new-age', 'new-release', 'opera', 'pagode', 'party', 'philippines-opm',
+    'piano', 'pop', 'pop-film', 'post-dubstep', 'power-pop', 'progressive-house',
+    'psych-rock', 'punk', 'punk-rock', 'r-n-b', 'rainy-day', 'reggae', 'reggaeton',
+    'road-trip', 'rock', 'rock-n-roll', 'rockabilly', 'sad',
+    'salsa', 'samba', 'sertanejo', 'show-tunes', 'singer-songwriter', 'ska', 'sleep',
+    'songwriter', 'soul', 'soundtracks', 'spanish', 'study', 'summer', 'swedish',
+    'synth-pop', 'tango', 'techno', 'trance', 'trip-hop', 'turkish', 'work-out',
+    'world-music'
+  ];
+
+  for (const genre of genres) {
+    const normalized = genre.toLowerCase().trim();
+    const mapped = spotifyGenreMap[normalized];
+    
+    if (mapped && spotifyValidGenres.includes(mapped)) {
+      if (!validGenres.includes(mapped)) {
+        validGenres.push(mapped);
+      }
+    } else if (spotifyValidGenres.includes(normalized)) {
+      if (!validGenres.includes(normalized)) {
+        validGenres.push(normalized);
+      }
+    }
   }
 
-  const queryParts = [];
-
-  for (const genre of genres.slice(0, 2)) {
-    const keywords = genreKeywords[genre.toLowerCase()] || [genre];
-    queryParts.push(keywords[0]);
+  // If no valid genres found, use safe defaults
+  if (validGenres.length === 0) {
+    validGenres.push('pop', 'chill');
   }
 
-  const moodTerm = moodTerms[Math.floor(Math.random() * moodTerms.length)];
-  queryParts.push(moodTerm);
-
-  return queryParts.join(' ');
+  return validGenres.slice(0, 5); // Spotify allows up to 5 seed genres
 }
 
-// Search for tracks using the smart query builder
+// Calculate energy and valence based on BPM and genres
+function calculateAudioFeatures(bpm, genres) {
+  // Energy: 0.0 to 1.0 (higher = more energetic)
+  let energy = 0.5;
+  if (bpm < 80) {
+    energy = 0.2 + (bpm - 60) / 100; // 0.2-0.4 for slow
+  } else if (bpm < 100) {
+    energy = 0.3 + (bpm - 80) / 100; // 0.3-0.5 for chill
+  } else if (bpm < 120) {
+    energy = 0.4 + (bpm - 100) / 100; // 0.4-0.6 for moderate
+  } else if (bpm < 140) {
+    energy = 0.6 + (bpm - 120) / 100; // 0.6-0.8 for upbeat
+  } else {
+    energy = 0.7 + Math.min(0.3, (bpm - 140) / 200); // 0.7-1.0 for fast
+  }
+  energy = Math.max(0.0, Math.min(1.0, energy));
+
+  // Valence: 0.0 to 1.0 (higher = more positive/happy)
+  const genreStr = genres.join(' ').toLowerCase();
+  let valence = 0.5;
+  if (genreStr.includes('sad') || genreStr.includes('melancholic')) {
+    valence = 0.2;
+  } else if (genreStr.includes('romantic') || genreStr.includes('chill')) {
+    valence = 0.6;
+  } else if (genreStr.includes('happy') || genreStr.includes('party')) {
+    valence = 0.8;
+  } else if (genreStr.includes('aggressive') || genreStr.includes('metal')) {
+    valence = 0.3;
+  }
+
+  return { energy, valence };
+}
+
+// Get tempo-related keywords based on BPM
+function getTempoKeywords(bpm) {
+  if (bpm < 70) {
+    return ['slow', 'ballad', 'ambient', 'calm', 'peaceful', 'relaxing', 'meditative'];
+  } else if (bpm < 90) {
+    return ['chill', 'mellow', 'downtempo', 'laid-back', 'smooth', 'easy'];
+  } else if (bpm < 110) {
+    return ['moderate', 'steady', 'groovy', 'smooth', 'balanced'];
+  } else if (bpm < 130) {
+    return ['upbeat', 'lively', 'energetic', 'driving', 'pulse'];
+  } else if (bpm < 150) {
+    return ['fast', 'energetic', 'driving', 'intense', 'powerful', 'dynamic'];
+  } else {
+    return ['fast', 'intense', 'aggressive', 'high-energy', 'powerful', 'driving'];
+  }
+}
+
+// Score a track based on how well it matches target criteria (without audio features)
+// Since audio-features API is deprecated, we use:
+// - 7.5%: Popularity (track quality indicator)
+// - 85%: Genre relevance (based on track name/artist matching genres)
+// - 7.5%: Tempo relevance (bonus only - not penalized since tempo keywords are inconsistent)
+// Returns score from 0.0 to 1.0 (higher = better match)
+function scoreTrack(track, targetBpm, targetGenres) {
+  let score = 0;
+
+  // Popularity (7.5% weight) - normalized to 0-1
+  const popularityScore = track.popularity / 100;
+  score += popularityScore * 0.075;
+
+  // Genre relevance (85% weight) - check if track/artist name contains genre keywords
+  const trackText = `${track.name} ${track.artists.map(a => a.name).join(' ')}`.toLowerCase();
+  const genreKeywords = targetGenres.map(g => g.toLowerCase());
+  
+  let genreMatches = 0;
+  for (const keyword of genreKeywords) {
+    if (trackText.includes(keyword)) {
+      genreMatches++;
+    }
+  }
+  
+  // Score based on how many genres match
+  const genreScore = Math.min(1, genreMatches / Math.max(1, genreKeywords.length));
+  score += genreScore * 0.85;
+
+  // Tempo relevance (5% weight) - small bonus only, no penalty
+  // Since tempo keywords in track names are inconsistent, we only give a small bonus
+  // if they match, but don't penalize if they don't
+  const tempoKeywords = getTempoKeywords(targetBpm);
+  let tempoBonus = 0;
+  
+  // Check for tempo keywords in track name
+  for (const keyword of tempoKeywords.slice(0, 3)) { // Only check first 3 keywords
+    if (trackText.includes(keyword)) {
+      tempoBonus = 0.5; // Small bonus
+      break;
+    }
+  }
+  
+  // Also check for BPM numbers in track names (e.g., "120 BPM", "140bpm")
+  // This is more reliable than keywords
+  const bpmRounded = Math.round(targetBpm / 10) * 10; // Round to nearest 10
+  const bpmPattern = new RegExp(`\\b(${bpmRounded}|${targetBpm})\\s*(bpm|b\\.p\\.m\\.)?`, 'i');
+  if (bpmPattern.test(trackText)) {
+    tempoBonus = 1.0; // Strong bonus if actual BPM number is in name
+  }
+  
+  score += tempoBonus * 0.075; // 7.5% weight, and only as a bonus
+
+  return score;
+}
+
+// Improved search using multiple genres and audio features
+async function searchSpotifyTracksWithGenreFilter(genres, bpm) {
+  try {
+    const token = await getSpotifyToken();
+
+    // Map to valid Spotify genres
+    const validGenres = mapToSpotifyGenres(genres);
+    
+    if (validGenres.length === 0) {
+      console.warn('No valid genres found');
+      return null;
+    }
+
+    // Try multiple search strategies with different genre combinations
+    // Randomly select which genre combinations to try for variety
+    const searchStrategies = [];
+    
+    // Build all possible genre combinations
+    const possibleStrategies = [];
+    
+    // Single genre (always include)
+    possibleStrategies.push({ 
+      query: `genre:${validGenres[0]}`, 
+      name: `single genre: ${validGenres[0]}`,
+      priority: 'high',
+      genreCount: 1
+    });
+    
+    // Dual genre (if we have 2+ genres)
+    if (validGenres.length >= 2) {
+      possibleStrategies.push({ 
+        query: `genre:${validGenres[0]} genre:${validGenres[1]}`, 
+        name: `dual genre: ${validGenres[0]} + ${validGenres[1]}`,
+        priority: 'high',
+        genreCount: 2
+      });
+    }
+    
+    // Triple genre (if we have 3+ genres)
+    if (validGenres.length >= 3) {
+      possibleStrategies.push({ 
+        query: validGenres.slice(0, 3).map(g => `genre:${g}`).join(' '), 
+        name: `triple genre: ${validGenres.slice(0, 3).join(' + ')}`,
+        priority: 'high',
+        genreCount: 3
+      });
+    }
+    
+    // Randomly select which strategies to use (occasionally use 1, 2, or 3 genres)
+    // Always include at least one strategy, but vary which ones
+    const random = Math.random();
+    
+    if (random < 0.4) {
+      // 40% chance: Use all available strategies (most comprehensive)
+      searchStrategies.push(...possibleStrategies);
+    } else if (random < 0.7) {
+      // 30% chance: Use 2 strategies (mix of single + multi-genre)
+      if (possibleStrategies.length >= 2) {
+        // Include single genre + one multi-genre
+        searchStrategies.push(possibleStrategies[0]); // Single
+        const multiGenre = possibleStrategies.filter(s => s.genreCount > 1);
+        if (multiGenre.length > 0) {
+          searchStrategies.push(multiGenre[Math.floor(Math.random() * multiGenre.length)]);
+        }
+      } else {
+        searchStrategies.push(...possibleStrategies);
+      }
+    } else {
+      // 30% chance: Use 1 strategy (randomly pick single, dual, or triple)
+      const selected = possibleStrategies[Math.floor(Math.random() * possibleStrategies.length)];
+      searchStrategies.push(selected);
+    }
+    
+    // Shuffle the selected strategies for variety
+    for (let i = searchStrategies.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [searchStrategies[i], searchStrategies[j]] = [searchStrategies[j], searchStrategies[i]];
+    }
+    
+    // Strategy 4: Try with tempo keywords (less reliable, but worth trying)
+    // Only add tempo keywords to every 3rd search to avoid over-reliance
+    const tempoKeywords = getTempoKeywords(bpm);
+    const primaryTempoKeyword = tempoKeywords[0];
+    
+    // Add tempo-enhanced searches as additional options (not primary)
+    if (validGenres.length >= 1) {
+      searchStrategies.push({ 
+        query: `genre:${validGenres[0]} ${primaryTempoKeyword}`, 
+        name: `single genre + tempo: ${validGenres[0]} ${primaryTempoKeyword}`,
+        priority: 'low' // Lower priority since tempo keywords are inconsistent
+      });
+    }
+    
+    if (validGenres.length >= 2) {
+      searchStrategies.push({ 
+        query: `genre:${validGenres[0]} genre:${validGenres[1]} ${primaryTempoKeyword}`, 
+        name: `dual genre + tempo: ${validGenres[0]} + ${validGenres[1]} ${primaryTempoKeyword}`,
+        priority: 'low'
+      });
+    }
+
+    let allTracks = [];
+    let allTrackIds = [];
+
+    // Try each search strategy, prioritizing genre-only searches
+    // Process high-priority (genre-only) searches first, then tempo-enhanced ones
+    const highPriorityStrategies = searchStrategies.filter(s => !s.priority || s.priority !== 'low');
+    const lowPriorityStrategies = searchStrategies.filter(s => s.priority === 'low');
+    
+    const strategiesToTry = [...highPriorityStrategies, ...lowPriorityStrategies];
+    
+    for (const strategy of strategiesToTry) {
+      console.log(`Trying search strategy: ${strategy.name}`);
+      
+      const searchParams = new URLSearchParams({
+        q: strategy.query,
+        type: 'track',
+        limit: '50'
+      });
+
+      const searchRes = await fetch(`https://api.spotify.com/v1/search?${searchParams}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (searchRes.ok) {
+        const searchData = await searchRes.json();
+        const tracks = searchData.tracks?.items || [];
+        
+        // Deduplicate tracks by ID
+        for (const track of tracks) {
+          if (!allTrackIds.includes(track.id)) {
+            allTracks.push(track);
+            allTrackIds.push(track.id);
+          }
+        }
+        
+        console.log(`Found ${tracks.length} tracks with ${strategy.name}, total unique: ${allTracks.length}`);
+        
+        // Continue trying all high-priority strategies to get diverse results
+        // Only stop early if we have a very large pool (100+ tracks)
+        // This ensures we try multi-genre searches even if single genre finds enough
+        if (allTracks.length >= 100) break; // Hard limit
+      }
+    }
+
+    if (allTracks.length === 0) {
+      console.warn('No tracks found from genre-filtered search.');
+      return null;
+    }
+
+    console.log(`Total unique tracks found: ${allTracks.length}`);
+
+    // Filter by popularity threshold first
+    let currentThreshold = popularityThreshold;
+    let filteredTracks = allTracks.filter(t => t.popularity >= currentThreshold);
+    
+    while (filteredTracks.length === 0 && currentThreshold > 0) {
+      currentThreshold = Math.max(0, currentThreshold - 10);
+      filteredTracks = allTracks.filter(t => t.popularity >= currentThreshold);
+      console.log(`No tracks found with popularity >= ${currentThreshold + 10}, trying ${currentThreshold}`);
+    }
+    
+    if (filteredTracks.length === 0) {
+      console.log(`No tracks found with any popularity threshold, using all tracks`);
+      filteredTracks = allTracks;
+    }
+
+    // Score tracks based on popularity and genre relevance (audio features API is deprecated)
+    const tracksToScore = filteredTracks
+      .sort((a, b) => b.popularity - a.popularity)
+      .slice(0, 50); // Score top 50 tracks
+
+    console.log(`Scoring ${tracksToScore.length} tracks based on popularity and genre match...`);
+    
+    // Score each track
+    const scoredTracks = tracksToScore
+      .map(track => {
+        const score = scoreTrack(track, bpm, genres);
+        return { track, score };
+      })
+      .filter(item => item.score > 0);
+
+    if (scoredTracks.length > 0) {
+      // Sort by score (highest first)
+      scoredTracks.sort((a, b) => b.score - a.score);
+
+      // Ensure artist diversity by grouping tracks by artist and selecting from diverse pool
+      const artistGroups = new Map();
+      scoredTracks.forEach(item => {
+        const artistId = item.track.artists[0].id;
+        if (!artistGroups.has(artistId)) {
+          artistGroups.set(artistId, []);
+        }
+        artistGroups.get(artistId).push(item);
+      });
+
+      // Build a diverse selection pool: take top track from each artist, then fill with remaining top tracks
+      const diversePool = [];
+      const usedArtists = new Set();
+      
+      // First pass: take top track from each unique artist (up to 20 artists)
+      for (const [artistId, tracks] of artistGroups.entries()) {
+        if (diversePool.length >= 20) break;
+        if (!usedArtists.has(artistId)) {
+          diversePool.push(tracks[0]); // Top track from this artist
+          usedArtists.add(artistId);
+        }
+      }
+      
+      // Second pass: add remaining top-scored tracks (even if same artist) to fill pool to 30
+      for (const item of scoredTracks) {
+        if (diversePool.length >= 30) break;
+        if (!diversePool.includes(item)) {
+          diversePool.push(item);
+        }
+      }
+      
+      // Randomly select from the diverse pool
+      const selected = diversePool[Math.floor(Math.random() * diversePool.length)];
+
+      const selectedTrack = selected.track;
+      
+      console.log(`Selected track: "${selectedTrack.name}" by ${selectedTrack.artists[0].name} (score: ${selected.score.toFixed(3)}, popularity: ${selectedTrack.popularity}, from pool of ${diversePool.length} diverse tracks)`);
+      
+      return selectedTrack;
+    }
+
+    // Fallback: Use popularity-based selection
+    const popularTracks = filteredTracks
+      .sort((a, b) => b.popularity - a.popularity);
+    
+    const randomIndex = Math.floor(Math.random() * Math.min(20, popularTracks.length));
+    const selectedTrack = popularTracks[randomIndex];
+    
+    console.log(`Selected track (popularity fallback): "${selectedTrack.name}" by ${selectedTrack.artists[0].name} (popularity: ${selectedTrack.popularity})`);
+    
+    return selectedTrack;
+
+  } catch (e) {
+    console.error('Error searching Spotify with genre filter:', e);
+    return null;
+  }
+}
+
+// Fallback: Search for tracks using genre-based search with text query (works when genre filters fail)
 async function searchSpotifyTracks(genres, bpm) {
   try {
     const token = await getSpotifyToken();
 
-    const searchQuery = buildSmartSearchQuery(genres, bpm);
+    // Use multiple genres in text search query
+    // Only add tempo keywords occasionally (not always) since they're inconsistent
+    const seedGenres = mapToSpotifyGenres(genres);
+    
+    // Build query - try genre-only first, tempo is handled in scoring
+    let searchQuery;
+    if (seedGenres.length >= 2) {
+      // Combine multiple genres in search
+      searchQuery = seedGenres.slice(0, 3).join(' ');
+    } else {
+      searchQuery = seedGenres[0] || genres[0] || 'pop';
+    }
 
-    console.log(`Searching Spotify with query: "${searchQuery}"`);
+    console.log(`Fallback: Searching Spotify with query: "${searchQuery}"`);
 
     const searchParams = new URLSearchParams({
       q: searchQuery,
@@ -258,37 +659,112 @@ async function searchSpotifyTracks(genres, bpm) {
       return null;
     }
 
-    console.log(`Found ${tracks.length} tracks`);
+    console.log(`Found ${tracks.length} tracks from search`);
 
-    // Filter tracks by popularity threshold, decreasing by 10 if no matches
+    // Score tracks based on popularity and genre relevance
+    const tracksToScore = tracks.slice(0, 50);
+    if (tracksToScore.length > 0) {
+      const scoredTracks = tracksToScore
+        .map(track => {
+          const score = scoreTrack(track, bpm, genres);
+          return { track, score };
+        })
+        .filter(item => item.score > 0);
+
+        if (scoredTracks.length > 0) {
+          scoredTracks.sort((a, b) => b.score - a.score);
+          
+          // Ensure artist diversity
+          const artistGroups = new Map();
+          scoredTracks.forEach(item => {
+            const artistId = item.track.artists[0].id;
+            if (!artistGroups.has(artistId)) {
+              artistGroups.set(artistId, []);
+            }
+            artistGroups.get(artistId).push(item);
+          });
+
+          const diversePool = [];
+          const usedArtists = new Set();
+          
+          // Take top track from each unique artist (up to 20 artists)
+          for (const [artistId, tracks] of artistGroups.entries()) {
+            if (diversePool.length >= 20) break;
+            if (!usedArtists.has(artistId)) {
+              diversePool.push(tracks[0]);
+              usedArtists.add(artistId);
+            }
+          }
+          
+          // Add remaining top tracks to fill pool to 30
+          for (const item of scoredTracks) {
+            if (diversePool.length >= 30) break;
+            if (!diversePool.includes(item)) {
+              diversePool.push(item);
+            }
+          }
+          
+          const selected = diversePool[Math.floor(Math.random() * diversePool.length)];
+          console.log(`Selected track: "${selected.track.name}" by ${selected.track.artists[0].name} (score: ${selected.score.toFixed(3)}, from ${diversePool.length} diverse tracks)`);
+          return selected.track;
+        }
+    }
+
+    // Fallback to popularity-based selection
     let currentThreshold = popularityThreshold;
     let filteredTracks = tracks.filter(t => t.popularity >= currentThreshold);
     
-    // If no tracks meet threshold, try decreasing by increments of 10
     while (filteredTracks.length === 0 && currentThreshold > 0) {
       currentThreshold = Math.max(0, currentThreshold - 10);
       filteredTracks = tracks.filter(t => t.popularity >= currentThreshold);
-      console.log(`No tracks found with popularity >= ${currentThreshold + 10}, trying ${currentThreshold}`);
     }
     
-    // If still no tracks, use all tracks but sorted by popularity
     if (filteredTracks.length === 0) {
-      console.log(`No tracks found with any popularity threshold, using all tracks`);
       filteredTracks = tracks;
     }
     
     const popularTracks = filteredTracks
       .sort((a, b) => b.popularity - a.popularity);
 
-    const randomIndex = Math.floor(Math.random() * Math.min(20, popularTracks.length));
-    const selectedTrack = popularTracks[randomIndex];
+    // Ensure artist diversity in fallback selection
+    const artistGroups = new Map();
+    popularTracks.forEach(track => {
+      const artistId = track.artists[0].id;
+      if (!artistGroups.has(artistId)) {
+        artistGroups.set(artistId, []);
+      }
+      artistGroups.get(artistId).push(track);
+    });
+
+    const diversePool = [];
+    const usedArtists = new Set();
+    
+    // Take top track from each unique artist (up to 20 artists)
+    for (const [artistId, artistTracks] of artistGroups.entries()) {
+      if (diversePool.length >= 20) break;
+      if (!usedArtists.has(artistId)) {
+        diversePool.push(artistTracks[0]); // Top track from this artist
+        usedArtists.add(artistId);
+      }
+    }
+    
+    // Add remaining top tracks to fill pool
+    for (const track of popularTracks) {
+      if (diversePool.length >= 30) break;
+      if (!diversePool.includes(track)) {
+        diversePool.push(track);
+      }
+    }
+
+    const randomIndex = Math.floor(Math.random() * diversePool.length);
+    const selectedTrack = diversePool[randomIndex];
 
     if (!selectedTrack) {
       console.warn('No track selected');
       return null;
     }
 
-    console.log(`Selected track: "${selectedTrack.name}" by ${selectedTrack.artists[0].name} (popularity: ${selectedTrack.popularity}, threshold used: ${currentThreshold})`);
+    console.log(`Selected track: "${selectedTrack.name}" by ${selectedTrack.artists[0].name} (popularity: ${selectedTrack.popularity}, from ${diversePool.length} diverse tracks)`);
     return selectedTrack;
 
   } catch (e) {
@@ -302,7 +778,25 @@ async function searchFromGenrePlaylists(genres, bpm) {
   try {
     const token = await getSpotifyToken();
 
-    const playlistQuery = `${genres[0]} ${bpm < 100 ? 'chill' : 'energetic'}`;
+    // Use multiple genres in playlist search
+    // Use tempo keywords sparingly - only for mood-based genres
+    const validGenres = mapToSpotifyGenres(genres);
+    const genreQuery = validGenres.slice(0, 2).join(' ');
+    
+    // Only add tempo keywords if we have mood-based genres (chill, upbeat, etc.)
+    // For concrete genres (pop, rock), tempo keywords are less useful
+    const hasMoodGenre = validGenres.some(g => ['chill', 'happy', 'sad', 'party'].includes(g));
+    let playlistQuery = genreQuery;
+    
+    if (hasMoodGenre) {
+      // If we already have mood genres, don't add tempo keywords
+      playlistQuery = genreQuery;
+    } else {
+      // For concrete genres, occasionally add tempo keywords
+      const tempoKeywords = getTempoKeywords(bpm);
+      const primaryTempoKeyword = tempoKeywords[0];
+      playlistQuery = `${genreQuery} ${primaryTempoKeyword}`;
+    }
 
     console.log(`Searching playlists with query: "${playlistQuery}"`);
 
@@ -340,9 +834,90 @@ async function searchFromGenrePlaylists(genres, bpm) {
 
     if (tracks.length === 0) return null;
 
-    const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+    // Score tracks based on popularity and genre relevance
+    const tracksToScore = tracks.slice(0, 50);
+    if (tracksToScore.length > 0) {
+      const scoredTracks = tracksToScore
+        .map(track => {
+          const score = scoreTrack(track, bpm, genres);
+          return { track, score };
+        })
+        .filter(item => item.score > 0);
 
-    console.log(`Found track from playlist "${randomPlaylist.name}": "${randomTrack.name}"`);
+      if (scoredTracks.length > 0) {
+        scoredTracks.sort((a, b) => b.score - a.score);
+        
+        // Ensure artist diversity
+        const artistGroups = new Map();
+        scoredTracks.forEach(item => {
+          const artistId = item.track.artists[0].id;
+          if (!artistGroups.has(artistId)) {
+            artistGroups.set(artistId, []);
+          }
+          artistGroups.get(artistId).push(item);
+        });
+
+        const diversePool = [];
+        const usedArtists = new Set();
+        
+        // Take top track from each unique artist (up to 15 artists)
+        for (const [artistId, tracks] of artistGroups.entries()) {
+          if (diversePool.length >= 15) break;
+          if (!usedArtists.has(artistId)) {
+            diversePool.push(tracks[0]);
+            usedArtists.add(artistId);
+          }
+        }
+        
+        // Add remaining top tracks to fill pool to 20
+        for (const item of scoredTracks) {
+          if (diversePool.length >= 20) break;
+          if (!diversePool.includes(item)) {
+            diversePool.push(item);
+          }
+        }
+        
+        const selected = diversePool[Math.floor(Math.random() * diversePool.length)];
+        console.log(`Found scored track from playlist "${randomPlaylist.name}": "${selected.track.name}" (score: ${selected.score.toFixed(3)}, from ${diversePool.length} diverse tracks)`);
+        return selected.track;
+      }
+    }
+
+    // Fallback to random selection with artist diversity
+    // Group tracks by artist and select from diverse pool
+    const artistGroups = new Map();
+    tracks.forEach(track => {
+      const artistId = track.artists[0].id;
+      if (!artistGroups.has(artistId)) {
+        artistGroups.set(artistId, []);
+      }
+      artistGroups.get(artistId).push(track);
+    });
+
+    const diversePool = [];
+    const usedArtists = new Set();
+    
+    // Take one random track from each unique artist
+    for (const [artistId, artistTracks] of artistGroups.entries()) {
+      if (diversePool.length >= 20) break;
+      if (!usedArtists.has(artistId)) {
+        const randomTrack = artistTracks[Math.floor(Math.random() * artistTracks.length)];
+        diversePool.push(randomTrack);
+        usedArtists.add(artistId);
+      }
+    }
+    
+    // If we still need more, add random tracks
+    while (diversePool.length < 20 && diversePool.length < tracks.length) {
+      const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+      if (!diversePool.includes(randomTrack)) {
+        diversePool.push(randomTrack);
+      }
+    }
+    
+    const randomTrack = diversePool[Math.floor(Math.random() * diversePool.length)];
+
+    console.log(`Found track from playlist "${randomPlaylist.name}": "${randomTrack.name}" (from ${diversePool.length} diverse tracks)`);
     return randomTrack;
 
   } catch (e) {
@@ -351,22 +926,33 @@ async function searchFromGenrePlaylists(genres, bpm) {
   }
 }
 
-// Decide recommendation using 3 strategies: search → playlist → fallback
+// Decide recommendation using improved strategies: genre-filtered search → multi-genre search → playlist → simple fallback
 async function getRecommendedTrack(genres, bpm) {
-  let track = await searchSpotifyTracks(genres, bpm);
+  // Strategy 1: Genre-filtered search (most accurate with current API)
+  console.log('Trying genre-filtered search...');
+  let track = await searchSpotifyTracksWithGenreFilter(genres, bpm);
   if (track) {
     return track;
   }
 
+  // Strategy 2: Multi-genre search with combined query
+  console.log('Trying multi-genre search...');
+  track = await searchSpotifyTracks(genres, bpm);
+  if (track) {
+    return track;
+  }
+
+  // Strategy 3: Try playlist-based search
   console.log('Trying playlist-based search...');
   track = await searchFromGenrePlaylists(genres, bpm);
-
   if (track) {
     return track;
   }
 
+  // Strategy 4: Simple fallback search
   console.log('Falling back to simple search...');
-  const fallbackQuery = genres.join(' ');
+  const seedGenres = mapToSpotifyGenres(genres);
+  const fallbackQuery = seedGenres[0] || genres[0] || 'pop';
 
   const token = await getSpotifyToken();
   const searchParams = new URLSearchParams({
