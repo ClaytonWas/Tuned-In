@@ -8,12 +8,12 @@
 
 <p align="center">
   <img src="docs/nowPlaying.gif" width="300" alt="Now Playing card with album art and track details" />
-  <img src="docs/history.gif" width="300" alt="Recommendation history list" />
+  <img src="docs/dynamicIsland.gif" width="300" alt="Dynamic Island header" />
 </p>
 
 <p align="center">
   <img src="docs/settings.gif" width="300" alt="Settings panel" />
-  <img src="docs/dynamicIsland.gif" width="300" alt="Dynamic Island header" />
+  <img src="docs/history.gif" width="300" alt="Recommendation history list" />
 </p>
 
 ## How It Works
