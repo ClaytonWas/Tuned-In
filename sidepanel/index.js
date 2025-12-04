@@ -1,3 +1,30 @@
+// Utility: Get all visible text from the page if Readability fails
+function getAllVisibleText() {
+  // Improved fallback: scrape and filter visible text from the DOM
+  let text = '';
+  try {
+    // Get all visible text nodes, excluding script/style/nav/footer/header/aside
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node) {
+        // Exclude invisible, whitespace, or boilerplate text
+        if (!node.parentElement) return NodeFilter.FILTER_REJECT;
+        const tag = node.parentElement.tagName.toLowerCase();
+        if (["script","style","nav","footer","header","aside"].includes(tag)) return NodeFilter.FILTER_REJECT;
+        if (node.textContent.trim().length < 2) return NodeFilter.FILTER_REJECT;
+        // Exclude cookie/privacy/policy banners
+        if (/cookie|privacy|policy|terms|settings|help|contact|login|register|basket|cart|ad|advert/i.test(node.textContent)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let node;
+    while ((node = walker.nextNode())) {
+      text += node.textContent.trim() + '\n';
+    }
+  } catch (e) {
+    text = 'Unable to extract visible text.';
+  }
+  return text.trim();
+}
 /* global Summarizer */
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
@@ -22,6 +49,13 @@ const summaryElement = document.querySelector('#summary');
 const warningElement = document.querySelector('#warning');
 const summarizeButton = document.querySelector('#summarizeButton');
 
+// Download progress elements
+const downloadProgressElement = document.querySelector('#downloadProgress');
+const downloadTitleElement = document.querySelector('#downloadTitle');
+const downloadSubtitleElement = document.querySelector('#downloadSubtitle');
+const progressFillElement = document.querySelector('#progressFill');
+const progressPercentElement = document.querySelector('#progressPercent');
+
 // Cache the Spotify token
 let cachedToken = null;
 let tokenExpiry = null;
@@ -36,9 +70,10 @@ function updateWarning(warning) {
   }
 }
 
-// Render the summary with HTML sanitization
+
+// No longer used: summaryElement is deprecated in favor of per-card summaries
 function showSummary(text) {
-  summaryElement.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  // Deprecated: do nothing
 }
 
 // Show temporary skeleton placeholders for history UI
@@ -130,7 +165,6 @@ async function renderHistory() {
     `;
 
     historyList.appendChild(li);
-    updateElementTheme(li, colorThemeSelect.value);
 
     if (i < summaryHistory.length - 1 && i % 3 === 2) {
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -989,7 +1023,7 @@ function chunkText(text, chunkSize) {
 }
 
 // Generate a summary using on-device Summarizer (supports chunked mode)
-async function generateSummary(text, fullTextMode) {
+async function generateSummary(text, fullTextMode, onProgress) {
   let summarizer;
   try {
     let isDownloading = false;
@@ -1006,10 +1040,7 @@ async function generateSummary(text, fullTextMode) {
         m.addEventListener('downloadprogress', (e) => {
           const percent = Math.round(e.loaded * 100);
           console.log(`Summarizer Downloaded ${percent}%`);
-          if (percent > 0 && percent < 100 && percent !== lastProgress) {
-            isDownloading = true;
-            showSummary(`📥 Downloading Webpage Summarization AI model... ${percent}%\n\n*This only happens on first use or after updates. Please wait.*`);
-          }
+          // Progress bar now handled by process cards
           lastProgress = percent;
         });
       }
@@ -1034,11 +1065,7 @@ async function generateSummary(text, fullTextMode) {
     if (summarizer) {
       await summarizer.ready;
 
-      if (isDownloading) {
-        showSummary('Download complete! Summarizing content...');
-      } else {
-        showSummary('Summarizing content...');
-      }
+      // Progress bar now handled by process cards
 
       if (fullTextMode && text.length > MAX_MODEL_CHARS) {
         const chunks = chunkText(text, MAX_MODEL_CHARS);
@@ -1046,6 +1073,10 @@ async function generateSummary(text, fullTextMode) {
 
         const summaries = [];
         for (let i = 0; i < chunks.length; i++) {
+          if (onProgress) {
+            // Progress: 0-50% for summarization
+            onProgress(Math.round(((i + 1) / chunks.length) * 50));
+          }
           showSummary(`Processing chunk ${i + 1} of ${chunks.length}...`);
           const chunkSummary = await summarizer.summarize(chunks[i]);
           summaries.push(chunkSummary);
@@ -1055,16 +1086,19 @@ async function generateSummary(text, fullTextMode) {
 
         if (combinedSummary.length > MAX_MODEL_CHARS) {
           showSummary('Creating final summary...');
+          if (onProgress) onProgress(50);
           const finalSummary = await summarizer.summarize(combinedSummary.slice(0, MAX_MODEL_CHARS));
           summarizer.destroy();
           return finalSummary;
         }
 
+        if (onProgress) onProgress(50);
         summarizer.destroy();
         return combinedSummary;
       } else {
         text = text.slice(0, MAX_MODEL_CHARS);
         const finalSummary = await summarizer.summarize(text);
+        if (onProgress) onProgress(50);
         summarizer.destroy();
         return finalSummary;
       }
@@ -1096,10 +1130,7 @@ async function analyzeMusicGenre(summaryText) {
         m.addEventListener('downloadprogress', (e) => {
           const percent = Math.round(e.loaded * 100);
           console.log(`Music Analyzer Downloaded ${percent}%`);
-          if (percent > 0 && percent < 100 && percent !== lastProgress) {
-            isDownloading = true;
-            showSummary(`📥 Downloading Music Analysis AI model... ${percent}%\n\n*This only happens on first use or after updates. Please wait.*`);
-          }
+          // Progress bar now handled by process cards
           lastProgress = percent;
         });
       }
@@ -1131,15 +1162,11 @@ async function analyzeMusicGenre(summaryText) {
         genres: ['ambient', 'electronic']
       };
     }
-
+genres: ["genre1", "genre2", "genre3"]
     if (summarizer) {
       await summarizer.ready;
 
-      if (isDownloading) {
-        showSummary('Download complete! Analyzing musical characteristics...');
-      } else {
-        showSummary('*Analyzing musical characteristics...*');
-      }
+      // Progress bar now handled by process cards
 
       const prompt = `Analyze this text and suggest MUSIC GENRES and tempo that would match its mood and energy.
 
@@ -1152,7 +1179,7 @@ DO NOT use content genres like "thriller", "drama", "documentary", "historical".
 
 Output ONLY in this exact format:
 genres: ["genre1", "genre2", "genre3"]
-bpm: number
+    }
 
 Rules:
 - Use 2-3 MUSIC genres that match the content's mood/energy
@@ -1242,60 +1269,21 @@ document.addEventListener('click', (e) => {
 });
 
 // Apply selected color theme across UI elements
-const colorThemeSelect = document.querySelector('#colorTheme');
-const savedTheme = localStorage.getItem('colorTheme') || 'gray';
-if (colorThemeSelect) {
-  colorThemeSelect.value = savedTheme;
-  applyColorTheme(savedTheme);
+const themeToggle = document.getElementById('themeToggle');
+const root = document.documentElement;
+const savedTheme = localStorage.getItem('themeMode') || 'light';
+root.classList.add(`theme-${savedTheme}`);
 
-  colorThemeSelect.addEventListener('change', (e) => {
-    const theme = e.target.value;
-    localStorage.setItem('colorTheme', theme);
-    applyColorTheme(theme);
+if (themeToggle) {
+  themeToggle.textContent = savedTheme === 'dark' ? '🌚 Dark Mode' : '🌞 Light Mode';
+  themeToggle.addEventListener('click', () => {
+    const current = root.classList.contains('theme-dark') ? 'dark' : 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.classList.remove(`theme-${current}`);
+    root.classList.add(`theme-${next}`);
+    localStorage.setItem('themeMode', next);
+    themeToggle.textContent = next === 'dark' ? '🌚 Dark Mode' : '🌞 Light Mode';
   });
-}
-
-// Apply theme styles using CSS variables
-function applyColorTheme(theme) {
-  const root = document.documentElement;
-  
-  // Map theme colors to HSL values
-  const themeColors = {
-    gray: { bg: '0 0% 3.9%', fg: '0 0% 98%', muted: '0 0% 14.9%', border: '0 0% 14.9%', card: '0 0% 3.9%', link: '0 0% 100%' },
-    green: { bg: '142 76% 4%', fg: '142 76% 98%', muted: '142 20% 15%', border: '142 20% 15%', card: '142 76% 4%', link: '142 76% 100%' },
-    red: { bg: '0 72% 4%', fg: '0 72% 98%', muted: '0 20% 15%', border: '0 20% 15%', card: '0 72% 4%', link: '0 72% 100%' },
-    blue: { bg: '217 91% 4%', fg: '217 91% 98%', muted: '217 20% 15%', border: '217 20% 15%', card: '217 91% 4%', link: '217 91% 100%' },
-    violet: { bg: '262 83% 4%', fg: '262 83% 98%', muted: '262 20% 15%', border: '262 20% 15%', card: '262 83% 4%', link: '262 83% 100%' },
-    pink: { bg: '330 81% 4%', fg: '330 81% 98%', muted: '330 20% 15%', border: '330 20% 15%', card: '330 81% 4%', link: '330 81% 100%' },
-    purple: { bg: '280 100% 4%', fg: '280 100% 98%', muted: '280 20% 15%', border: '280 20% 15%', card: '280 100% 4%', link: '280 100% 100%' },
-    indigo: { bg: '239 84% 4%', fg: '239 84% 98%', muted: '239 20% 15%', border: '239 20% 15%', card: '239 84% 4%', link: '239 84% 100%' },
-    cyan: { bg: '188 94% 4%', fg: '188 94% 98%', muted: '188 20% 15%', border: '188 20% 15%', card: '188 94% 4%', link: '188 94% 100%' },
-    teal: { bg: '173 80% 4%', fg: '173 80% 98%', muted: '173 20% 15%', border: '173 20% 15%', card: '173 80% 4%', link: '173 80% 100%' },
-    lime: { bg: '75 85% 4%', fg: '75 85% 98%', muted: '75 20% 15%', border: '75 20% 15%', card: '75 85% 4%', link: '75 85% 100%' },
-    yellow: { bg: '53 96% 4%', fg: '53 96% 98%', muted: '53 20% 15%', border: '53 20% 15%', card: '53 96% 4%', link: '53 96% 100%' },
-    orange: { bg: '25 95% 4%', fg: '25 95% 98%', muted: '25 20% 15%', border: '25 20% 15%', card: '25 95% 4%', link: '25 95% 100%' },
-    choco: { bg: '25 35% 4%', fg: '25 35% 98%', muted: '25 20% 15%', border: '25 20% 15%', card: '25 35% 4%', link: '25 35% 100%' },
-    brown: { bg: '30 25% 4%', fg: '30 25% 98%', muted: '30 20% 15%', border: '30 20% 15%', card: '30 25% 4%', link: '30 25% 100%' },
-    stone: { bg: '24 10% 4%', fg: '24 10% 98%', muted: '24 10% 15%', border: '24 10% 15%', card: '24 10% 4%', link: '24 10% 100%' },
-    sand: { bg: '43 13% 4%', fg: '43 13% 98%', muted: '43 13% 15%', border: '43 13% 15%', card: '43 13% 4%', link: '43 13% 100%' },
-    camo: { bg: '90 30% 4%', fg: '90 30% 98%', muted: '90 20% 15%', border: '90 20% 15%', card: '90 30% 4%', link: '90 30% 100%' },
-    jungle: { bg: '142 50% 4%', fg: '142 50% 98%', muted: '142 20% 15%', border: '142 20% 15%', card: '142 50% 4%', link: '142 50% 100%' }
-  };
-
-  const colors = themeColors[theme] || themeColors.gray;
-  
-  root.style.setProperty('--bg', `hsl(${colors.bg})`);
-  root.style.setProperty('--fg', `hsl(${colors.fg})`);
-  root.style.setProperty('--muted', `hsl(${colors.muted})`);
-  root.style.setProperty('--border', `hsl(${colors.border})`);
-  root.style.setProperty('--card', `hsl(${colors.card})`);
-  root.style.setProperty('--link-color', `hsl(${colors.link})`);
-}
-
-// Apply theme to a single element (for history items that need dynamic updates)
-function updateElementTheme(element, theme) {
-  // Theme is now applied globally via CSS variables, but we can still update specific elements if needed
-  applyColorTheme(theme);
 }
 
 // Set character limit UI and sync with localStorage
@@ -1402,11 +1390,8 @@ if (clearHistoryBtn) {
 
 // Summarize button click → summarize → analyze → recommend
 summarizeButton.addEventListener('click', async () => {
-  if (!pageContent) {
-    updateWarning("");
-    return;
-  }
-
+    console.log('Summarize button clicked');
+  // Always create a process card for every submission
   isAnalyzing = true;
 
   // Track the page title/URL at click time
@@ -1422,20 +1407,77 @@ summarizeButton.addEventListener('click', async () => {
   }
 
   updateWarning('');
-  showSummary('Summarizing content...');
   document.querySelector('#musicInfo').setAttribute('hidden', '');
 
   const fullTextMode = fullTextCheckbox.checked;
 
-  const summary = await generateSummary(pageContent, fullTextMode);
+  // Add a new process card for this request
+  const processId = window.addProcessCard('recommend', 'Generating Recommendation');
+
+  // Always use fresh content for summarization
+  let contentToSummarize = null;
+  // Always reset Summarizer context before generating a summary
+  if (typeof Summarizer !== 'undefined' && Summarizer && typeof Summarizer.reset === 'function') {
+    Summarizer.reset();
+  }
+  if (pageContent && typeof pageContent === 'string' && pageContent.trim().length > 0) {
+    contentToSummarize = pageContent;
+  } else {
+    // Request visible text from content script in active tab
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const scrapedText = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(activeTab.id, { type: 'EXTRACT_VISIBLE_TEXT' }, (response) => {
+        resolve(response && response.text ? response.text : 'No visible text found on this page.');
+      });
+    });
+    contentToSummarize = scrapedText && scrapedText.trim().length > 0 ? scrapedText : 'No visible text found on this page.';
+    window.updateProcessCard(processId, {
+      status: 'running',
+      summary: `<em>Scraped visible text:</em><br>${DOMPurify.sanitize(marked.parse(contentToSummarize))}`
+    });
+  }
+
+  // Use true progress for summarization
+  let unifiedProgress = 0;
+  window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running' });
+  let summaryRaw = '';
+  const summary = await generateSummary(contentToSummarize, fullTextMode, (progress, chunkText) => {
+    unifiedProgress = progress;
+    if (chunkText) {
+      window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running', summary: DOMPurify.sanitize(marked.parse(chunkText)) });
+    } else {
+      window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running' });
+    }
+  });
+  summaryRaw = summary;
+  unifiedProgress = 50;
+  window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running', description: 'Analyzing musical characteristics...', summary: DOMPurify.sanitize(marked.parse(summaryRaw)) });
 
   if (summary.startsWith('Error:')) {
-    showSummary(summary);
+    window.updateProcessCard(processId, { progress: 100, status: 'error', error: summary });
     return;
   }
 
-  showSummary('*Analyzing musical characteristics...*');
-  const analysis = await analyzeMusicGenre(summary);
+  // Animate analysis progress from 50 to 100% while analysis is running
+  let analysisDone = false;
+  let analysisProgress = 50;
+  const analysisInterval = setInterval(() => {
+    if (!analysisDone) {
+      analysisProgress += 2;
+      if (analysisProgress > 100) analysisProgress = 100;
+      window.updateProcessCard(processId, { progress: analysisProgress, status: 'running' });
+    }
+  }, 100);
+
+  const analysis = await analyzeMusicGenre(summaryRaw);
+  analysisDone = true;
+  clearInterval(analysisInterval);
+  window.updateProcessCard(processId, {
+    progress: 100,
+    status: 'done',
+    analysis: `<strong>Genres:</strong> ${analysis.genres.join(', ')}<br><strong>BPM:</strong> ${analysis.bpm}`,
+    result: 'Recommendation ready!'
+  });
 
   const musicInfo = document.querySelector('#musicInfo');
   const bpmElem = document.querySelector('#musicBpm');
@@ -1455,8 +1497,7 @@ summarizeButton.addEventListener('click', async () => {
     spotifySearchLink.textContent = '';
     spotifySearchLink.href = '#';
   }
-
-  updateElementTheme(musicInfo, colorThemeSelect.value);
+  // Theme is now handled globally via CSS class; no per-element update needed
   musicInfo.removeAttribute('hidden');
 
   showSummary('Searching for a matching track...');
@@ -1571,6 +1612,9 @@ function onContentChange() {
   summaryElement.removeAttribute('hidden');
 
   if (!pageContent) {
+    // Try to scrape all visible text if Readability fails
+    const fallbackText = getAllVisibleText();
+    pageContent = fallbackText;
     showSummary("Music Generation Not Currently Possible (There's nothing to summarize)");
     updateWarning('');
     return;
@@ -1593,6 +1637,7 @@ function onContentChange() {
     updateWarning('');
   }
 
+  // Restore old summary wording as an indicator
   showSummary("Music Generation Possible");
 }
 

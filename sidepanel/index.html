@@ -29,6 +29,23 @@
           Generate Recommendation
         </button>
 
+        <!-- Download Progress -->
+        <div id="downloadProgress" hidden class="download-progress">
+          <div class="download-header">
+            <div class="download-icon">📥</div>
+            <div class="download-text">
+              <div class="download-title" id="downloadTitle">Downloading AI Model...</div>
+              <div class="download-subtitle" id="downloadSubtitle">This only happens on first use</div>
+            </div>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-percent" id="progressPercent">0%</div>
+          </div>
+        </div>
+
         <!-- Warning -->
         <div id="warning" hidden class="alert"></div>
 
@@ -62,8 +79,6 @@
           </div>
         </div>
 
-        <!-- Summary -->
-        <div id="summary" class="summary"></div>
 
         <!-- History -->
         <div class="history-section">
@@ -87,30 +102,10 @@
           <button id="closeSettings" class="close-button">×</button>
         </div>
         <div class="settings-content">
-          <!-- Theme -->
+          <!-- Theme Mode Toggle -->
           <div class="setting-item">
-            <label class="setting-label">Theme</label>
-            <select id="colorTheme" class="setting-control">
-              <option value="gray">Gray</option>
-              <option value="green">Green</option>
-              <option value="red">Red</option>
-              <option value="blue">Blue</option>
-              <option value="violet">Violet</option>
-              <option value="pink">Pink</option>
-              <option value="purple">Purple</option>
-              <option value="indigo">Indigo</option>
-              <option value="cyan">Cyan</option>
-              <option value="teal">Teal</option>
-              <option value="lime">Lime</option>
-              <option value="yellow">Yellow</option>
-              <option value="orange">Orange</option>
-              <option value="choco">Choco</option>
-              <option value="brown">Brown</option>
-              <option value="stone">Stone</option>
-              <option value="sand">Sand</option>
-              <option value="camo">Camo</option>
-              <option value="jungle">Jungle</option>
-            </select>
+            <label class="setting-label" for="themeToggle">Theme</label>
+            <button id="themeToggle" class="setting-btn">🌞 Light / 🌚 Dark</button>
           </div>
 
           <!-- History Limit -->
@@ -137,6 +132,7 @@
       </div>
     </div>
 
-    <script src="index.js" type="module"></script>
+    <script src="processCards.js"></script>
+    <script src="index.js"></script>
   </body>
 </html>
