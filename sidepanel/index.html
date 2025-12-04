@@ -7,78 +7,117 @@
   </head>
   <body>
     <div class="container">
-      <!-- Compact Header -->
-      <header class="header">
-        <div class="header-controls">
-          <label class="checkbox-label">
-            <input type="checkbox" id="fullTextMode" />
-            <span>Full Text</span>
-          </label>
-          <div class="range-group">
-            <span class="range-label">Chunk:</span>
-            <input type="range" id="charLimit" min="1000" max="10000" value="7500" step="500" />
-            <span id="charLimitValue" class="range-value">10000</span>
+      <!-- Dynamic Island Header -->
+      <header class="header" id="dynamicIsland">
+        <div class="header-main">
+          <div class="header-controls">
+            <label class="checkbox-label">
+              <input type="checkbox" id="fullTextMode" />
+              <span>Full Text</span>
+            </label>
+            <div class="range-group">
+              <span class="range-label">Chunk:</span>
+              <input type="range" id="charLimit" min="1000" max="10000" value="7500" step="500" />
+              <span id="charLimitValue" class="range-value">10000</span>
+            </div>
+          </div>
+          <button id="settingsButton" class="header-settings-btn" title="Settings">
+            <span>⚙️</span>
+          </button>
+        </div>
+        
+        <!-- Settings Panel (expands from Dynamic Island) -->
+        <div id="settingsPanel" class="settings-panel" hidden>
+          <div class="settings-content">
+            <!-- Theme Mode Toggle -->
+            <div class="setting-item">
+              <label class="setting-label" for="themeToggle">Theme</label>
+              <button id="themeToggle" class="setting-btn">🌞 Light / 🌚 Dark</button>
+            </div>
+
+            <!-- History Limit -->
+            <div class="setting-item">
+              <label class="setting-label">History Limit</label>
+              <input type="number" id="historyLimit" class="setting-control" min="1" max="100" value="20" />
+            </div>
+
+            <!-- Popularity Range -->
+            <div class="setting-item">
+              <label class="setting-label">Popularity Range</label>
+              <div class="range-slider-container">
+                <div class="range-slider">
+                  <input type="range" id="popularityMin" min="0" max="100" value="25" class="range-input range-min" />
+                  <input type="range" id="popularityMax" min="0" max="100" value="100" class="range-input range-max" />
+                  <div class="range-track"></div>
+                  <div class="range-fill"></div>
+                </div>
+                <div class="range-values">
+                  <span id="popularityMinValue">25</span>
+                  <span class="range-separator">–</span>
+                  <span id="popularityMaxValue">100</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Export/Clear History -->
+            <div class="setting-item">
+              <label class="setting-label">History</label>
+              <div class="setting-buttons">
+                <button id="exportHistory" class="setting-btn">Export</button>
+                <button id="clearHistory" class="setting-btn setting-btn-danger">Clear</button>
+              </div>
+            </div>
+
+            <!-- Show Scrollbar Toggle -->
+            <div class="setting-item">
+              <label class="checkbox-label">
+                <input type="checkbox" id="showScrollbar" />
+                <span>Show Scrollbar</span>
+              </label>
+            </div>
           </div>
         </div>
       </header>
 
       <!-- Main Content -->
       <main class="main">
-        <!-- Generate Button -->
-        <button id="summarizeButton" class="btn-primary">
-          Generate Recommendation
-        </button>
+        <!-- Now Playing Section -->
+        <section class="now-playing-section">
+          <!-- Generate Button -->
+          <button id="summarizeButton" class="generate-btn">
+            <span class="generate-btn-icon">✦</span>
+            <span class="generate-btn-text">Generate Recommendation</span>
+          </button>
 
-        <!-- Download Progress -->
-        <div id="downloadProgress" hidden class="download-progress">
-          <div class="download-header">
-            <div class="download-icon">📥</div>
-            <div class="download-text">
-              <div class="download-title" id="downloadTitle">Downloading AI Model...</div>
-              <div class="download-subtitle" id="downloadSubtitle">This only happens on first use</div>
-            </div>
-          </div>
-          <div class="progress-bar-container">
-            <div class="progress-bar" id="progressBar">
-              <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="progress-percent" id="progressPercent">0%</div>
-          </div>
-        </div>
+          <!-- Warning (compact) -->
+          <div id="warning" hidden class="warning-banner"></div>
 
-        <!-- Warning -->
-        <div id="warning" hidden class="alert"></div>
-
-        <!-- Current Recommendation -->
-        <div id="musicInfo" hidden class="card">
-          <div id="trackInfo" hidden class="track-content">
-            <div class="track-header">
-              <img id="albumCover" src="" alt="Album cover" class="album-art" />
-              <div class="track-info">
-                <a id="spotifyLink" href="#" target="_blank" class="track-link">
-                  <h3 id="trackName" class="track-name">—</h3>
-                  <p id="trackArtist" class="track-artist">—</p>
-                </a>
-                <a id="spotifySearchLink" href="#" target="_blank" class="spotify-link">
-                  <span>▶</span>
-                  <span>Open in Spotify</span>
+          <!-- Now Playing Card -->
+          <div id="musicInfo" hidden class="now-playing-card">
+            <div id="trackInfo" class="now-playing-content">
+              <div class="now-playing-artwork">
+                <a id="albumCoverLink" href="#" target="_blank" title="Open in Spotify">
+                  <img id="albumCover" src="" alt="Album cover" class="album-art" />
                 </a>
               </div>
-            </div>
-            
-            <div class="analysis">
-              <div class="analysis-item">
-                <span class="analysis-label">Genres</span>
-                <span id="musicGenres" class="analysis-value">-</span>
-              </div>
-              <div class="analysis-item">
-                <span class="analysis-label">Tempo</span>
-                <span id="musicBpm" class="analysis-value">- <span class="unit">BPM</span></span>
+              <div class="now-playing-details">
+                <a id="spotifyLink" href="#" target="_blank" class="now-playing-link">
+                  <div class="now-playing-track">
+                    <h3 id="trackName" class="track-name">—</h3>
+                  </div>
+                  <div class="now-playing-artist">
+                    <p id="trackArtist" class="track-artist">—</p>
+                  </div>
+                </a>
+                <div class="now-playing-meta">
+                  <span class="meta-tag" id="musicGenres">-</span>
+                  <span class="meta-divider">•</span>
+                  <span class="meta-tag"><span id="musicBpm">-</span> BPM</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
+        </section>
 
         <!-- History -->
         <div class="history-section">
@@ -89,47 +128,6 @@
           <ul id="historyList" class="history-list"></ul>
         </div>
       </main>
-
-      <!-- Footer with Settings Button -->
-      <footer class="footer">
-        <button id="settingsButton" class="settings-button">⚙️ Settings</button>
-      </footer>
-
-      <!-- Settings Panel -->
-      <div id="settingsPanel" class="settings-panel" hidden>
-        <div class="settings-header">
-          <h1 class="title">⚙️ Settings</h1>
-          <button id="closeSettings" class="close-button">×</button>
-        </div>
-        <div class="settings-content">
-          <!-- Theme Mode Toggle -->
-          <div class="setting-item">
-            <label class="setting-label" for="themeToggle">Theme</label>
-            <button id="themeToggle" class="setting-btn">🌞 Light / 🌚 Dark</button>
-          </div>
-
-          <!-- History Limit -->
-          <div class="setting-item">
-            <label class="setting-label">History Limit</label>
-            <input type="number" id="historyLimit" class="setting-control" min="1" max="100" value="20" />
-          </div>
-
-          <!-- Popularity threshold -->
-          <div class="setting-item">
-            <label class="setting-label">Popularity Threshold (0-100)</label>
-            <input type="number" id="popularityThreshold" class="setting-control" min="0" max="100" value="60" />
-          </div>
-
-          <!-- Export/Clear History -->
-          <div class="setting-item">
-            <label class="setting-label">History</label>
-            <div class="setting-buttons">
-              <button id="exportHistory" class="setting-btn">Export</button>
-              <button id="clearHistory" class="setting-btn setting-btn-danger">Clear</button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <script src="processCards.js"></script>

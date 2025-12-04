@@ -43,18 +43,69 @@ let pageContent = '';
 let isAnalyzing = false;
 let summaryHistory = JSON.parse(localStorage.getItem('summaryHistory') || '[]');
 let maxHistoryLimit = parseInt(localStorage.getItem('historyLimit') || '20', 10);
-let popularityThreshold = parseInt(localStorage.getItem('popularityThreshold') || '25', 10);
+let popularityMin = parseInt(localStorage.getItem('popularityMin') || '25', 10);
+let popularityMax = parseInt(localStorage.getItem('popularityMax') || '100', 10);
 
 const summaryElement = document.querySelector('#summary');
 const warningElement = document.querySelector('#warning');
 const summarizeButton = document.querySelector('#summarizeButton');
 
-// Download progress elements
-const downloadProgressElement = document.querySelector('#downloadProgress');
-const downloadTitleElement = document.querySelector('#downloadTitle');
-const downloadSubtitleElement = document.querySelector('#downloadSubtitle');
-const progressFillElement = document.querySelector('#progressFill');
-const progressPercentElement = document.querySelector('#progressPercent');
+// ============================================
+// Singleton Summarizer - initialized once, reused
+// ============================================
+let sharedSummarizer = null;
+let summarizerInitializing = false;
+let summarizerReady = false;
+
+async function getSharedSummarizer() {
+  // Already ready
+  if (sharedSummarizer && summarizerReady) {
+    return sharedSummarizer;
+  }
+  
+  // Already initializing - wait for it
+  if (summarizerInitializing) {
+    while (summarizerInitializing) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return sharedSummarizer;
+  }
+  
+  // Initialize
+  summarizerInitializing = true;
+  
+  try {
+    const availability = await Summarizer.availability();
+    if (availability !== 'available') {
+      console.warn('Summarizer not available');
+      summarizerInitializing = false;
+      return null;
+    }
+    
+    const options = {
+      robustnessLevel: "medium",
+      sharedContext: 'Analyze content and provide insights.',
+      type: 'key-points',
+      expectedInputLanguages: ["en", "ja", "es"],
+      outputLanguage: "en",
+      format: 'plain-text',
+      length: 'short'
+    };
+    
+    sharedSummarizer = await Summarizer.create(options);
+    await sharedSummarizer.ready;
+    summarizerReady = true;
+    summarizerInitializing = false;
+    
+    console.log('Shared summarizer initialized');
+    return sharedSummarizer;
+    
+  } catch (e) {
+    console.error('Failed to initialize summarizer:', e);
+    summarizerInitializing = false;
+    return null;
+  }
+}
 
 // Cache the Spotify token
 let cachedToken = null;
@@ -114,23 +165,49 @@ async function renderHistory() {
     li.classList.add('history-item');
 
     const spotifyEmbedUrl = `https://open.spotify.com/embed/track/${item.trackId}`;
+    const albumArt = item.albumArt || '';
 
     li.innerHTML = `
-      <iframe 
-        src="${spotifyEmbedUrl}" 
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-        loading="lazy"
-        frameBorder="0">
-      </iframe>
+      <div class="history-content">
+        <div class="history-artwork">
+          <a href="https://open.spotify.com/track/${item.trackId}" target="_blank">
+            <img src="${albumArt}" alt="Album cover" />
+          </a>
+        </div>
+        <div class="history-details">
+          <div class="history-track">
+            <a href="https://open.spotify.com/track/${item.trackId}" target="_blank">${item.trackName}</a>
+          </div>
+          <div class="history-artist">
+            ${item.artistIds
+              .map((id, index) =>
+                `<a href="https://open.spotify.com/artist/${id}" target="_blank">${item.trackArtist.split(', ')[index]}</a>`
+              ).join(', ')
+            }
+          </div>
+          <div class="history-meta">
+            <span>${item.genres.slice(0, 2).join(', ')}</span>
+            <span>•</span>
+            <span>${item.bpm} BPM</span>
+          </div>
+        </div>
+      </div>
 
       <div class="source-link">
-        <span style="font-size: 0.75rem; color: rgba(231, 231, 231, 0.6);">Source:</span>
+        <span class="source-label">Source:</span>
         <strong><a href="${item.pageUrl}" target="_blank">${item.pageTitle}</a></strong>
       </div>
 
       <details>
         <summary>More Info</summary>
         <div class="details-content">
+          <iframe 
+            src="${spotifyEmbedUrl}" 
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+            loading="lazy"
+            frameBorder="0">
+          </iframe>
+
           <div class="details-row">
             <span class="details-label">Track:</span>
             <span>
@@ -557,18 +634,21 @@ async function searchSpotifyTracksWithGenreFilter(genres, bpm) {
 
     console.log(`Total unique tracks found: ${allTracks.length}`);
 
-    // Filter by popularity threshold first
-    let currentThreshold = popularityThreshold;
-    let filteredTracks = allTracks.filter(t => t.popularity >= currentThreshold);
+    // Filter by popularity range first
+    let currentMin = popularityMin;
+    let currentMax = popularityMax;
+    let filteredTracks = allTracks.filter(t => t.popularity >= currentMin && t.popularity <= currentMax);
     
-    while (filteredTracks.length === 0 && currentThreshold > 0) {
-      currentThreshold = Math.max(0, currentThreshold - 10);
-      filteredTracks = allTracks.filter(t => t.popularity >= currentThreshold);
-      console.log(`No tracks found with popularity >= ${currentThreshold + 10}, trying ${currentThreshold}`);
+    // Fallback: expand range if no tracks found
+    while (filteredTracks.length === 0 && (currentMin > 0 || currentMax < 100)) {
+      currentMin = Math.max(0, currentMin - 10);
+      currentMax = Math.min(100, currentMax + 10);
+      filteredTracks = allTracks.filter(t => t.popularity >= currentMin && t.popularity <= currentMax);
+      console.log(`No tracks in range ${currentMin + 10}-${currentMax - 10}, expanding to ${currentMin}-${currentMax}`);
     }
     
     if (filteredTracks.length === 0) {
-      console.log(`No tracks found with any popularity threshold, using all tracks`);
+      console.log(`No tracks found in any popularity range, using all tracks`);
       filteredTracks = allTracks;
     }
 
@@ -745,12 +825,14 @@ async function searchSpotifyTracks(genres, bpm) {
     }
 
     // Fallback to popularity-based selection
-    let currentThreshold = popularityThreshold;
-    let filteredTracks = tracks.filter(t => t.popularity >= currentThreshold);
+    let currentMin = popularityMin;
+    let currentMax = popularityMax;
+    let filteredTracks = tracks.filter(t => t.popularity >= currentMin && t.popularity <= currentMax);
     
-    while (filteredTracks.length === 0 && currentThreshold > 0) {
-      currentThreshold = Math.max(0, currentThreshold - 10);
-      filteredTracks = tracks.filter(t => t.popularity >= currentThreshold);
+    while (filteredTracks.length === 0 && (currentMin > 0 || currentMax < 100)) {
+      currentMin = Math.max(0, currentMin - 10);
+      currentMax = Math.min(100, currentMax + 10);
+      filteredTracks = tracks.filter(t => t.popularity >= currentMin && t.popularity <= currentMax);
     }
     
     if (filteredTracks.length === 0) {
@@ -1022,88 +1104,46 @@ function chunkText(text, chunkSize) {
   return chunks;
 }
 
-// Generate a summary using on-device Summarizer (supports chunked mode)
+// Generate a summary using shared on-device Summarizer
 async function generateSummary(text, fullTextMode, onProgress) {
-  let summarizer;
   try {
-    let isDownloading = false;
-    let lastProgress = -1;
-    const options = {
-      robustnessLevel: "medium",
-      sharedContext: 'This is a website.',
-      type: 'key-points',
-      expectedInputLanguages: ["en", "ja", "es"],
-      outputLanguage: "en",
-      format: 'plain-text',
-      length: 'short',
-      monitor(m) {
-        m.addEventListener('downloadprogress', (e) => {
-          const percent = Math.round(e.loaded * 100);
-          console.log(`Summarizer Downloaded ${percent}%`);
-          // Progress bar now handled by process cards
-          lastProgress = percent;
-        });
-      }
-    };
-
-    const availability = await Summarizer.availability();
-    if (availability !== 'available') {
+    const summarizer = await getSharedSummarizer();
+    
+    if (!summarizer) {
       showSummary("This feature requires Chrome's on-device AI model (Gemini Nano). Please upgrade to a new version of Chrome.");
-      return;
+      return 'Error: Summarizer not available';
     }
 
-    // Try to create summarizer - user activation may not be available for auto-generate
-    try {
-      summarizer = await Summarizer.create(options);
-    } catch (e) {
-      if (e.message && e.message.includes('user activation')) {
-        return 'Error: User interaction required. Please click the button to generate recommendations.';
+    if (fullTextMode && text.length > MAX_MODEL_CHARS) {
+      const chunks = chunkText(text, MAX_MODEL_CHARS);
+      console.log(`Processing ${chunks.length} chunks in full text mode`);
+
+      const summaries = [];
+      for (let i = 0; i < chunks.length; i++) {
+        if (onProgress) {
+          onProgress(Math.round(((i + 1) / chunks.length) * 50));
+        }
+        showSummary(`Processing chunk ${i + 1} of ${chunks.length}...`);
+        const chunkSummary = await summarizer.summarize(chunks[i]);
+        summaries.push(chunkSummary);
       }
-      throw e;
-    }
 
-    if (summarizer) {
-      await summarizer.ready;
+      const combinedSummary = summaries.join('\n\n');
 
-      // Progress bar now handled by process cards
-
-      if (fullTextMode && text.length > MAX_MODEL_CHARS) {
-        const chunks = chunkText(text, MAX_MODEL_CHARS);
-        console.log(`Processing ${chunks.length} chunks in full text mode`);
-
-        const summaries = [];
-        for (let i = 0; i < chunks.length; i++) {
-          if (onProgress) {
-            // Progress: 0-50% for summarization
-            onProgress(Math.round(((i + 1) / chunks.length) * 50));
-          }
-          showSummary(`Processing chunk ${i + 1} of ${chunks.length}...`);
-          const chunkSummary = await summarizer.summarize(chunks[i]);
-          summaries.push(chunkSummary);
-        }
-
-        const combinedSummary = summaries.join('\n\n');
-
-        if (combinedSummary.length > MAX_MODEL_CHARS) {
-          showSummary('Creating final summary...');
-          if (onProgress) onProgress(50);
-          const finalSummary = await summarizer.summarize(combinedSummary.slice(0, MAX_MODEL_CHARS));
-          summarizer.destroy();
-          return finalSummary;
-        }
-
+      if (combinedSummary.length > MAX_MODEL_CHARS) {
+        showSummary('Creating final summary...');
         if (onProgress) onProgress(50);
-        summarizer.destroy();
-        return combinedSummary;
-      } else {
-        text = text.slice(0, MAX_MODEL_CHARS);
-        const finalSummary = await summarizer.summarize(text);
-        if (onProgress) onProgress(50);
-        summarizer.destroy();
+        const finalSummary = await summarizer.summarize(combinedSummary.slice(0, MAX_MODEL_CHARS));
         return finalSummary;
       }
+
+      if (onProgress) onProgress(50);
+      return combinedSummary;
     } else {
-      throw new Error('Summarizer could not be created. Click the button to activate.');
+      text = text.slice(0, MAX_MODEL_CHARS);
+      const finalSummary = await summarizer.summarize(text);
+      if (onProgress) onProgress(50);
+      return finalSummary;
     }
 
   } catch (e) {
@@ -1114,61 +1154,18 @@ async function generateSummary(text, fullTextMode, onProgress) {
 
 // Analyze the summary text to extract genres + BPM recommendation
 async function analyzeMusicGenre(summaryText) {
-  let summarizer;
   try {
-    let isDownloading = false;
-    let lastProgress = -1;
-    const options = {
-      robustnessLevel: "medium",
-      sharedContext: 'You are a music analyst. Analyze text and suggest matching MUSIC characteristics.',
-      type: 'key-points',
-      expectedInputLanguages: ["en", "ja", "es"],
-      outputLanguage: "en",
-      format: 'plain-text',
-      length: 'short',
-      monitor(m) {
-        m.addEventListener('downloadprogress', (e) => {
-          const percent = Math.round(e.loaded * 100);
-          console.log(`Music Analyzer Downloaded ${percent}%`);
-          // Progress bar now handled by process cards
-          lastProgress = percent;
-        });
-      }
-    };
-
-    const availability = await Summarizer.availability();
-    if (availability === 'unavailable') {
-      console.warn('Summarizer API not available for genre analysis.');
+    const summarizer = await getSharedSummarizer();
+    
+    if (!summarizer) {
+      console.warn('Summarizer not available for genre analysis.');
       return {
         bpm: 100,
         genres: ['ambient', 'electronic']
       };
     }
 
-    // Try to create summarizer - user activation may not be available
-    try {
-      summarizer = await Summarizer.create(options);
-    } catch (e) {
-      if (e.message && e.message.includes('user activation')) {
-        console.warn('User activation required for analysis');
-        return {
-          bpm: 100,
-          genres: ['ambient', 'electronic']
-        };
-      }
-      console.error('Failed to create summarizer for analysis:', e);
-      return {
-        bpm: 100,
-        genres: ['ambient', 'electronic']
-      };
-    }
-genres: ["genre1", "genre2", "genre3"]
-    if (summarizer) {
-      await summarizer.ready;
-
-      // Progress bar now handled by process cards
-
-      const prompt = `Analyze this text and suggest MUSIC GENRES and tempo that would match its mood and energy.
+    const prompt = `Analyze this text and suggest MUSIC GENRES and tempo that would match its mood and energy.
 
 IMPORTANT: Use ONLY real music genres like:
 - Moods: ambient, chill, sad, happy, party, romantic, aggressive
@@ -1178,8 +1175,8 @@ IMPORTANT: Use ONLY real music genres like:
 DO NOT use content genres like "thriller", "drama", "documentary", "historical".
 
 Output ONLY in this exact format:
+bpm: 120
 genres: ["genre1", "genre2", "genre3"]
-    }
 
 Rules:
 - Use 2-3 MUSIC genres that match the content's mood/energy
@@ -1189,48 +1186,44 @@ Rules:
 Text to analyze:
 """${summaryText}"""`;
 
-      const reply = await summarizer.summarize(prompt);
-      console.log('Music analysis reply:\n', reply);
-      summarizer.destroy();
+    const reply = await summarizer.summarize(prompt);
+    console.log('Music analysis reply:\n', reply);
 
-      let genres = [];
-      let bpm = 100;
+    let genres = [];
+    let bpm = 100;
 
-      try {
-        const clean = reply.replace(/\*/g, '').trim();
+    try {
+      const clean = reply.replace(/\*/g, '').trim();
 
-        const genresMatch = clean.match(/genres:\s*\[([^\]]+)\]/i);
-        if (genresMatch) {
-          const genresStr = genresMatch[1];
-          genres = genresStr
-            .split(',')
-            .map(g => g.trim().replace(/['"]/g, '').toLowerCase())
-            .filter(g => g.length > 0);
-        }
-
-        const bpmMatch = clean.match(/bpm:\s*(\d+)/i);
-        if (bpmMatch) {
-          bpm = parseInt(bpmMatch[1], 10);
-          bpm = Math.max(60, Math.min(180, bpm));
-        }
-
-      } catch (e) {
-        console.error('Error parsing music analysis:', e);
+      const genresMatch = clean.match(/genres:\s*\[([^\]]+)\]/i);
+      if (genresMatch) {
+        const genresStr = genresMatch[1];
+        genres = genresStr
+          .split(',')
+          .map(g => g.trim().replace(/['"]/g, '').toLowerCase())
+          .filter(g => g.length > 0);
       }
 
-      if (!Array.isArray(genres) || genres.length === 0) {
-        genres = ['ambient', 'electronic'];
+      const bpmMatch = clean.match(/bpm:\s*(\d+)/i);
+      if (bpmMatch) {
+        bpm = parseInt(bpmMatch[1], 10);
+        bpm = Math.max(60, Math.min(180, bpm));
       }
 
-      genres = [...new Set(genres)].slice(0, 3);
-
-      const result = { genres, bpm };
-      console.log('Parsed music analysis:', result);
-      return result;
-
-    } else {
-      throw new Error('Summarizer could not be created.');
+    } catch (e) {
+      console.error('Error parsing music analysis:', e);
     }
+
+    if (!Array.isArray(genres) || genres.length === 0) {
+      genres = ['ambient', 'electronic'];
+    }
+
+    genres = [...new Set(genres)].slice(0, 3);
+
+    const result = { genres, bpm };
+    console.log('Parsed music analysis:', result);
+    return result;
+
   } catch (e) {
     console.error('Music analysis failed:', e);
     return {
@@ -1240,31 +1233,31 @@ Text to analyze:
   }
 }
 
-// Settings panel toggle
+// Settings panel toggle (expands from Dynamic Island)
 const settingsButton = document.querySelector('#settingsButton');
 const settingsPanel = document.querySelector('#settingsPanel');
-const closeSettings = document.querySelector('#closeSettings');
+const dynamicIsland = document.querySelector('#dynamicIsland');
 
 if (settingsButton && settingsPanel) {
   settingsButton.addEventListener('click', (e) => {
     e.stopPropagation();
-    settingsPanel.removeAttribute('hidden');
-  });
-}
-
-if (closeSettings && settingsPanel) {
-  closeSettings.addEventListener('click', (e) => {
-    e.stopPropagation();
-    settingsPanel.setAttribute('hidden', '');
+    const isHidden = settingsPanel.hasAttribute('hidden');
+    if (isHidden) {
+      settingsPanel.removeAttribute('hidden');
+      dynamicIsland?.classList.add('settings-open');
+    } else {
+      settingsPanel.setAttribute('hidden', '');
+      dynamicIsland?.classList.remove('settings-open');
+    }
   });
 }
 
 // Close settings when clicking outside
 document.addEventListener('click', (e) => {
   if (settingsPanel && !settingsPanel.hasAttribute('hidden') && 
-      !settingsPanel.contains(e.target) && 
-      !settingsButton?.contains(e.target)) {
+      !dynamicIsland?.contains(e.target)) {
     settingsPanel.setAttribute('hidden', '');
+    dynamicIsland?.classList.remove('settings-open');
   }
 });
 
@@ -1314,21 +1307,39 @@ fullTextCheckbox.addEventListener('change', (e) => {
 
 // Initialize all settings
 const historyLimitInput = document.querySelector('#historyLimit');
-const popularityThresholdInput = document.querySelector('#popularityThreshold');
 const exportHistoryBtn = document.querySelector('#exportHistory');
 const clearHistoryBtn = document.querySelector('#clearHistory');
+const showScrollbarCheckbox = document.querySelector('#showScrollbar');
+
+// Scrollbar visibility
+let showScrollbar = localStorage.getItem('showScrollbar') === 'true';
+if (showScrollbarCheckbox) {
+  showScrollbarCheckbox.checked = showScrollbar;
+  if (showScrollbar) {
+    document.documentElement.classList.add('show-scrollbar');
+  }
+  showScrollbarCheckbox.addEventListener('change', (e) => {
+    showScrollbar = e.target.checked;
+    localStorage.setItem('showScrollbar', showScrollbar.toString());
+    if (showScrollbar) {
+      document.documentElement.classList.add('show-scrollbar');
+    } else {
+      document.documentElement.classList.remove('show-scrollbar');
+    }
+  });
+}
 
 // History Limit
 if (historyLimitInput) {
   historyLimitInput.value = maxHistoryLimit;
   historyLimitInput.addEventListener('change', (e) => {
     let value = parseInt(e.target.value, 10);
-    if (value < 1) {
-      value = 1;
-      historyLimitInput.value = 1;
-    } else if (value > 100) {
-      value = 100;
-      historyLimitInput.value = 100;
+    if (value <= 3) {
+      value = 3;
+      historyLimitInput.value = 3;
+    } else if (value >= 1000) {
+      value = 1000;
+      historyLimitInput.value = 1000;
     }
     maxHistoryLimit = value;
     localStorage.setItem('historyLimit', value.toString());
@@ -1342,25 +1353,61 @@ if (historyLimitInput) {
   });
 }
 
-// Popularity Threshold
-if (popularityThresholdInput) {
-  popularityThresholdInput.value = popularityThreshold;
-  popularityThresholdInput.addEventListener('input', (e) => {
-    let value = parseInt(e.target.value, 10);
-    if (isNaN(value)) {
-      value = 25;
-      popularityThresholdInput.value = 25;
-    } else if (value < 0) {
-      value = 0;
-      popularityThresholdInput.value = 0;
-    } else if (value > 100) {
-      value = 100;
-      popularityThresholdInput.value = 100;
+// Popularity Range Slider
+const popularityMinInput = document.querySelector('#popularityMin');
+const popularityMaxInput = document.querySelector('#popularityMax');
+const popularityMinValue = document.querySelector('#popularityMinValue');
+const popularityMaxValue = document.querySelector('#popularityMaxValue');
+const rangeFill = document.querySelector('.range-fill');
+
+function updateRangeSlider() {
+  const min = parseInt(popularityMinInput.value, 10);
+  const max = parseInt(popularityMaxInput.value, 10);
+  
+  // Ensure min doesn't exceed max and vice versa
+  if (min > max) {
+    if (this === popularityMinInput) {
+      popularityMinInput.value = max;
+    } else {
+      popularityMaxInput.value = min;
     }
-    popularityThreshold = value;
-    localStorage.setItem('popularityThreshold', value.toString());
-    console.log(`Popularity threshold updated to: ${popularityThreshold}`);
-  });
+  }
+  
+  const minVal = parseInt(popularityMinInput.value, 10);
+  const maxVal = parseInt(popularityMaxInput.value, 10);
+  
+  // Update display values
+  popularityMinValue.textContent = minVal;
+  popularityMaxValue.textContent = maxVal;
+  
+  // Update fill bar position
+  const percent1 = minVal;
+  const percent2 = maxVal;
+  rangeFill.style.left = percent1 + '%';
+  rangeFill.style.width = (percent2 - percent1) + '%';
+  
+  // Save to state and localStorage
+  popularityMin = minVal;
+  popularityMax = maxVal;
+  localStorage.setItem('popularityMin', minVal.toString());
+  localStorage.setItem('popularityMax', maxVal.toString());
+  console.log(`Popularity range updated to: ${popularityMin}-${popularityMax}`);
+}
+
+if (popularityMinInput && popularityMaxInput) {
+  // Initialize values from state
+  popularityMinInput.value = popularityMin;
+  popularityMaxInput.value = popularityMax;
+  popularityMinValue.textContent = popularityMin;
+  popularityMaxValue.textContent = popularityMax;
+  
+  // Initialize fill bar
+  rangeFill.style.left = popularityMin + '%';
+  rangeFill.style.width = (popularityMax - popularityMin) + '%';
+  
+  // Add event listeners
+  popularityMinInput.addEventListener('input', updateRangeSlider);
+  popularityMaxInput.addEventListener('input', updateRangeSlider);
 }
 
 // Export History
@@ -1407,12 +1454,13 @@ summarizeButton.addEventListener('click', async () => {
   }
 
   updateWarning('');
-  document.querySelector('#musicInfo').setAttribute('hidden', '');
+  const musicInfoEl = document.querySelector('#musicInfo');
+  if (musicInfoEl) musicInfoEl.setAttribute('hidden', '');
 
   const fullTextMode = fullTextCheckbox.checked;
 
-  // Add a new process card for this request
-  const processId = window.addProcessCard('recommend', 'Generating Recommendation');
+  // Add a new process item for this request (shows page title, progress, status)
+  const processId = window.addProcessCard('recommend', 'Generating Recommendation', currentPageTitle);
 
   // Always use fresh content for summarization
   let contentToSummarize = null;
@@ -1431,30 +1479,22 @@ summarizeButton.addEventListener('click', async () => {
       });
     });
     contentToSummarize = scrapedText && scrapedText.trim().length > 0 ? scrapedText : 'No visible text found on this page.';
-    window.updateProcessCard(processId, {
-      status: 'running',
-      summary: `<em>Scraped visible text:</em><br>${DOMPurify.sanitize(marked.parse(contentToSummarize))}`
-    });
   }
 
   // Use true progress for summarization
   let unifiedProgress = 0;
   window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running' });
   let summaryRaw = '';
-  const summary = await generateSummary(contentToSummarize, fullTextMode, (progress, chunkText) => {
+  const summary = await generateSummary(contentToSummarize, fullTextMode, (progress) => {
     unifiedProgress = progress;
-    if (chunkText) {
-      window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running', summary: DOMPurify.sanitize(marked.parse(chunkText)) });
-    } else {
-      window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running' });
-    }
+    window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running' });
   });
   summaryRaw = summary;
   unifiedProgress = 50;
-  window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running', description: 'Analyzing musical characteristics...', summary: DOMPurify.sanitize(marked.parse(summaryRaw)) });
+  window.updateProcessCard(processId, { progress: unifiedProgress, status: 'running' });
 
   if (summary.startsWith('Error:')) {
-    window.updateProcessCard(processId, { progress: 100, status: 'error', error: summary });
+    window.updateProcessCard(processId, { progress: 100, status: 'error' });
     return;
   }
 
@@ -1474,9 +1514,7 @@ summarizeButton.addEventListener('click', async () => {
   clearInterval(analysisInterval);
   window.updateProcessCard(processId, {
     progress: 100,
-    status: 'done',
-    analysis: `<strong>Genres:</strong> ${analysis.genres.join(', ')}<br><strong>BPM:</strong> ${analysis.bpm}`,
-    result: 'Recommendation ready!'
+    status: 'done'
   });
 
   const musicInfo = document.querySelector('#musicInfo');
@@ -1486,19 +1524,17 @@ summarizeButton.addEventListener('click', async () => {
   const trackName = document.querySelector('#trackName');
   const trackArtist = document.querySelector('#trackArtist');
   const albumCover = document.querySelector('#albumCover');
+  const albumCoverLink = document.querySelector('#albumCoverLink');
   const spotifyLink = document.querySelector('#spotifyLink');
-  const spotifySearchLink = document.querySelector('#spotifySearchLink');
 
-  bpmElem.textContent = analysis.bpm;
-  genresElem.textContent = analysis.genres.join(', ');
-  trackInfo.setAttribute('hidden', '');
-  albumCover.src = '';
-  if (spotifySearchLink) {
-    spotifySearchLink.textContent = '';
-    spotifySearchLink.href = '#';
+  if (bpmElem) bpmElem.textContent = analysis.bpm;
+  if (genresElem) genresElem.textContent = analysis.genres.join(', ');
+  if (albumCover) albumCover.src = '';
+  if (albumCoverLink) {
+    albumCoverLink.href = '#';
   }
   // Theme is now handled globally via CSS class; no per-element update needed
-  musicInfo.removeAttribute('hidden');
+  if (musicInfo) musicInfo.removeAttribute('hidden');
 
   showSummary('Searching for a matching track...');
 
@@ -1507,7 +1543,7 @@ summarizeButton.addEventListener('click', async () => {
     isAnalyzing = false;
 
     if (track) {
-      // Set track name with scrolling
+      // Set track name with marquee scrolling (like old car radio)
       const trackNameText = track.name;
       trackName.textContent = '';
       const trackNameSpan = document.createElement('span');
@@ -1515,19 +1551,11 @@ summarizeButton.addEventListener('click', async () => {
       trackNameSpan.className = 'track-name-scroll';
       trackName.appendChild(trackNameSpan);
       
-      // Calculate scroll distance - always enable scrolling
-      setTimeout(() => {
-        const nameOverflows = trackNameSpan.scrollWidth > trackName.offsetWidth;
-        if (nameOverflows) {
-          const overflow = trackNameSpan.scrollWidth - trackName.offsetWidth;
-          trackNameSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
-        } else {
-          // Set a minimal scroll distance so animation always runs
-          trackNameSpan.style.setProperty('--scroll-distance', '-10px');
-        }
-      }, 100);
+      // Set scroll duration based on text length (longer text = slower scroll)
+      const nameDuration = Math.max(8, Math.min(20, trackNameText.length * 0.4));
+      trackNameSpan.style.setProperty('--marquee-duration', `${nameDuration}s`);
       
-      // Set artist with scrolling
+      // Set artist with marquee scrolling
       const artistText = track.artists.map(a => a.name).join(', ');
       trackArtist.textContent = '';
       const artistSpan = document.createElement('span');
@@ -1535,17 +1563,9 @@ summarizeButton.addEventListener('click', async () => {
       artistSpan.className = 'track-artist-scroll';
       trackArtist.appendChild(artistSpan);
       
-      // Calculate scroll distance - always enable scrolling
-      setTimeout(() => {
-        const artistOverflows = artistSpan.scrollWidth > trackArtist.offsetWidth;
-        if (artistOverflows) {
-          const overflow = artistSpan.scrollWidth - trackArtist.offsetWidth;
-          artistSpan.style.setProperty('--scroll-distance', `-${overflow}px`);
-        } else {
-          // Set a minimal scroll distance so animation always runs
-          artistSpan.style.setProperty('--scroll-distance', '-10px');
-        }
-      }, 100);
+      // Set scroll duration based on text length
+      const artistDuration = Math.max(8, Math.min(20, artistText.length * 0.4));
+      artistSpan.style.setProperty('--marquee-duration', `${artistDuration}s`);
       
       spotifyLink.href = track.external_urls.spotify;
 
@@ -1554,9 +1574,8 @@ summarizeButton.addEventListener('click', async () => {
         albumCover.removeAttribute('hidden');
       }
 
-      if (spotifySearchLink) {
-        spotifySearchLink.href = track.external_urls.spotify;
-        spotifySearchLink.innerHTML = '<span class="spotify-icon">▶</span><span>Open in Spotify</span>';
+      if (albumCoverLink) {
+        albumCoverLink.href = track.external_urls.spotify;
       }
 
       trackInfo.removeAttribute('hidden');
@@ -1565,6 +1584,7 @@ summarizeButton.addEventListener('click', async () => {
         trackName: track.name,
         trackArtist: track.artists.map(a => a.name).join(', '),
         artistIds: track.artists.map(a => a.id),
+        albumArt: track.album?.images?.[0]?.url || '',
         genres: analysis.genres,
         bpm: analysis.bpm,
         trackId: track.id,
@@ -1582,9 +1602,8 @@ summarizeButton.addEventListener('click', async () => {
 
       summaryElement.setAttribute('hidden', '');
     } else {
-      if (spotifySearchLink) {
-        spotifySearchLink.href = `https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}`;
-        spotifySearchLink.innerHTML = '<span class="spotify-icon">🔍</span><span>Search on Spotify</span>';
+      if (albumCoverLink) {
+        albumCoverLink.href = `https://open.spotify.com/search/${encodeURIComponent(analysis.genres.join(' '))}`;
       }
       summaryElement.removeAttribute('hidden');
       showSummary("Could not find a matching track");
@@ -1593,10 +1612,9 @@ summarizeButton.addEventListener('click', async () => {
   } catch (e) {
     isAnalyzing = false;
     console.error('Error fetching track:', e);
-    const spotifySearchLink = document.querySelector('#spotifySearchLink');
-    if (spotifySearchLink) {
-      spotifySearchLink.textContent = '';
-      spotifySearchLink.href = '#';
+    const albumCoverLink = document.querySelector('#albumCoverLink');
+    if (albumCoverLink) {
+      albumCoverLink.href = '#';
     }
     summaryElement.removeAttribute('hidden');
     showSummary("Error fetching track");
